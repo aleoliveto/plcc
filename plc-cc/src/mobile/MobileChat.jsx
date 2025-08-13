@@ -4,7 +4,6 @@ export default function MobileChat({ name="Concierge", messages=[], onSend, onBa
   const [text,setText]=useState("");
   const logRef = useRef(null);
   useEffect(()=>{ logRef.current?.scrollTo(0, logRef.current.scrollHeight); },[messages]);
-
   const send = () => { if(!text.trim()) return; onSend?.(text.trim()); setText(""); };
 
   return (

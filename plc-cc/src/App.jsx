@@ -1,14 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useScreen } from "./hooks/useScreen";
-import MobileHome from "./mobile/MobileHome";
-import TabletHome from "./tablet/TabletHome";
-import MobileTabs from "./mobile/MobileTabs";
-import MobileChat from "./mobile/MobileChat";
-import MobileProfile from "./mobile/MobileProfile";
 
-
-
-/* ========= Shared helpers ========= */
+/* ========= Small utilities ========= */
 function uid(){ return Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4); }
 function useLocalState(key, initial){
   const [v,setV]=useState(()=>{ try{const r=localStorage.getItem(key); return r?JSON.parse(r):initial;}catch{return initial;}});
@@ -26,7 +18,14 @@ function parseDT(dateStr, timeStr){ return new Date(`${dateStr}T${timeStr||"09:0
 function minutesDiff(a,b){ return Math.round((a.getTime()-b.getTime())/60000); }
 function currency(n, hide){ if(hide) return "••••"; try { return new Intl.NumberFormat(undefined,{style:"currency",currency:"GBP"}).format(Number(n||0)); } catch { return `£${Number(n||0).toFixed(0)}`; } }
 
-/* ========= Navigation ========= */
+/* ========= Responsive hook (inline, premium-tuned breakpoints) ========= */
+function useScreen() {
+  const [w, setW] = useState(typeof window !== "undefined" ? window.innerWidth : 1440);
+  useEffect(() => { const onR=()=>setW(window.innerWidth); window.addEventListener("resize", onR); return ()=>window.removeEventListener("resize", onR); },[]);
+  return { width: w, isPhone: w <= 480, isTablet: w > 480 && w <= 1024, isDesktop: w > 1024 };
+}
+
+/* ========= Nav ========= */
 const NAV = [
   { key: "dashboard", label: "Dashboard" },
   { key: "calendar", label: "Calendar" },
@@ -39,36 +38,25 @@ const NAV = [
   { key: "onboarding", label: "Onboarding" },
 ];
 
-/* ========= App ========= */
+/* =======================================================================
+   App
+======================================================================= */
 export default function App(){
   /* Theme & privacy */
   const [theme,setTheme] = useLocalState("plc_theme","noir");
   useEffect(()=>{ document.body.dataset.theme = theme; },[theme]);
   const [privacy,setPrivacy] = useLocalState("plc_privacy","show"); // "show" | "hide"
   const hideSensitive = privacy === "hide";
-  const screen = useScreen();
-const [mobileTab, setMobileTab] = useLocalState("plc_mobile_tab","home");
 
-const [messages, setMessages] = useLocalState("plc_messages_v1", [
-  { id: uid(), thread: "concierge", from: "them", text: "Good morning — how may I assist?", at: Date.now()-3600_000 }
-]);
-const [lastThread, setLastThread] = useLocalState("plc_last_thread","concierge");
-
-function sendChat(text){
-  setMessages(m => [...m, { id: uid(), thread: lastThread, from: "me", text, at: Date.now() }]);
-  setMobileTab("chat");
-}
-const threadMsgs = useMemo(()=>messages.filter(m=>m.thread===lastThread).sort((a,b)=>a.at-b.at),[messages,lastThread]);
-
-  /* Core pages & data */
+  /* Router */
   const [route,setRoute] = useState("dashboard");
+
+  /* Core data */
   const [onboarding,setOnboarding] = useLocalState("plc_onboarding_v1",{});
   const [requests,setRequests] = useLocalState("plc_requests_v1",[
     { id: uid(), title: "Table for four, Saturday 20:00", category: "Dining", priority: "Medium", status: "Open", assignee: "Concierge", dueDate: dateToYYYYMMDD(Date.now()+86400_000*4), createdAt: Date.now(), notes: "Quiet corner. Italian or French." },
     { id: uid(), title: "Airport transfer Friday", category: "Travel", priority: "High", status: "In Progress", assignee: "Chauffeur", dueDate: dateToYYYYMMDD(Date.now()+86400_000*2), createdAt: Date.now()-3600_000, notes: "Mayfair → LHR T5 at 13:00." },
   ]);
-
-  /* New executive data */
   const [decisions,setDecisions] = useLocalState("plc_decisions_v1",[
     { id: uid(), type:"Payment", title:"Art restoration invoice", amount: 2850, due: dateToYYYYMMDD(Date.now()+86400_000), requester:"Gallery", context:"Invoice #AR-1189", status:"Pending" },
     { id: uid(), type:"Booking", title:"Dinner at Luca (Sat 20:00)", amount: null, due: dateToYYYYMMDD(Date.now()+86400_000*4), requester:"Concierge", context:"Quiet table, 4 pax", status:"Pending" },
@@ -101,8 +89,6 @@ const threadMsgs = useMemo(()=>messages.filter(m=>m.thread===lastThread).sort((a
   const [datesManual,setDatesManual] = useLocalState("plc_dates_v1",[
     { id: uid(), label:"Anniversary", date: dateToYYYYMMDD(Date.now()+86400_000*30), notes:"Dinner booking" },
   ]);
-
-  /* Logistics data */
   const [vehicles,setVehicles] = useLocalState("plc_vehicles_rt_v1",[
     { id: uid(), driver:"Marco", plate:"LX20 BNT", nextJobAt: `${dateToYYYYMMDD(Date.now())} 07:40`, status:"On duty" },
     { id: uid(), driver:"Amir", plate:"EV70 LUX", nextJobAt: `${dateToYYYYMMDD(Date.now())} 13:00`, status:"Standby" },
@@ -110,16 +96,12 @@ const threadMsgs = useMemo(()=>messages.filter(m=>m.thread===lastThread).sort((a
   const [guests,setGuests] = useLocalState("plc_guests_v1",[
     { id: uid(), name:"Sophie", eta: `${dateToYYYYMMDD(Date.now()+86400_000*2)} 18:00`, notes:"Staying 2 nights" },
   ]);
-
-  /* Concierge inbox threads */
   const [inbox,setInbox] = useLocalState("plc_inbox_v1",[
     { id: uid(), from:"Concierge", summary:"Dry cleaning delivered to Mayfair residence", lastUpdateAt: Date.now()-60*60*1000 },
     { id: uid(), from:"Travel", summary:"NCE flight upgrade confirmed", lastUpdateAt: Date.now()-2*60*60*1000 },
     { id: uid(), from:"Home", summary:"Landscaping moved to 10:00 tomorrow", lastUpdateAt: Date.now()-20*60*1000 },
   ]);
-
-  /* Settings */
-  const [settings,setSettings] = useLocalState("plc_settings_v1",{ travelBufferMin: 30 }); // Time-to-leave buffer
+  const [settings,setSettings] = useLocalState("plc_settings_v1",{ travelBufferMin: 30 });
   const [money,setMoney] = useLocalState("plc_money_v1",{
     mtdDiscretionary: 12500, plan: 20000,
     nextPayments: [
@@ -159,7 +141,7 @@ const threadMsgs = useMemo(()=>messages.filter(m=>m.thread===lastThread).sort((a
     }; rdr.readAsText(file);
   }
 
-  /* Executive Briefing */
+  /* Executive Briefing derived */
   const name = onboarding.personal?.preferredName || onboarding.personal?.fullName || "Client";
   const nextEvent = useMemo(()=>{
     const now = new Date();
@@ -173,8 +155,6 @@ const threadMsgs = useMemo(()=>messages.filter(m=>m.thread===lastThread).sort((a
     const leaveAt = new Date(parseDT(nextEvent.date,nextEvent.time).getTime() - (settings.travelBufferMin||30)*60000);
     return minutesDiff(leaveAt, new Date());
   },[nextEvent, settings.travelBufferMin]);
-
-  /* Derived dashboards */
   const pendingDecisions = decisions.filter(d=>d.status==="Pending");
   const unresolvedAlerts = alerts.filter(a=>!a.resolved);
   const nextTripSeg = useMemo(()=>{
@@ -183,9 +163,36 @@ const threadMsgs = useMemo(()=>messages.filter(m=>m.thread===lastThread).sort((a
     return future[0]||null;
   },[trips]);
 
-  /* Render */
+  /* ====== Chat (lightweight, with auto-replies & unread) ====== */
+  const [mobileTab, setMobileTab] = useLocalState("plc_mobile_tab","home");
+  const [threads] = useLocalState("plc_threads_v1", [{ id: "concierge", name: "Concierge" }]);
+  const [lastThread, setLastThread] = useLocalState("plc_last_thread", "concierge");
+  const [messages, setMessages] = useLocalState("plc_messages_v1", [
+    { id: uid(), thread: "concierge", from: "them", text: "Good morning — how may I assist?", at: Date.now()-3600_000 }
+  ]);
+  const [readAt, setReadAt] = useLocalState("plc_read_at_v1", { concierge: Date.now()-3600_000 });
+
+  const threadMsgs = useMemo(()=>messages.filter(m=>m.thread===lastThread).sort((a,b)=>a.at-b.at),[messages,lastThread]);
+  const unreadCount = useMemo(()=>{ const t=readAt[lastThread]||0; return messages.filter(m=>m.thread===lastThread && m.from==="them" && m.at>t).length; },[messages,readAt,lastThread]);
+  function markThreadRead(id=lastThread){ setReadAt(r=>({...r,[id]:Date.now()})); }
+  const AUTO = ["Certainly. I’ll handle and update.","Booked and confirmed.","Sharing options shortly.","On it — will report back."];
+  function autoReply(threadId){ const reply=AUTO[Math.floor(Math.random()*AUTO.length)];
+    setTimeout(()=>setMessages(m=>[...m,{id:uid(),thread:threadId,from:"them",text:reply,at:Date.now()}]), 900+Math.random()*1200);
+  }
+  function sendChat(text, threadId=lastThread){
+    setMessages(m=>[...m,{id:uid(),thread:threadId,from:"me",text,at:Date.now()}]);
+    setMobileTab("chat"); setLastThread(threadId); autoReply(threadId);
+  }
+
+  const openRequestsCount = useMemo(()=>requests.filter(r=>r.status!=="Done").length,[requests]);
+
+  /* ====== Screen ====== */
+  const screen = useScreen();
+
+  /* ====== Render ====== */
   return (
     <div className="app">
+      {/* Top & shell hidden on phone by CSS media queries */}
       <TopBar
         theme={theme}
         privacy={privacy}
@@ -198,88 +205,93 @@ const threadMsgs = useMemo(()=>messages.filter(m=>m.thread===lastThread).sort((a
       <div className="shell">
         <SideBar route={route} onNavigate={setRoute} />
         <main className="main">
-          {route === "dashboard" && (
-  screen.isPhone ? (
-    <>
-      {mobileTab === "home" && (
-        <MobileHome
-          name={name}
-          nextEvent={nextEvent}
-          leaveInMin={leaveInMin}
-          pendingCount={pendingDecisions.length}
-          alertCount={unresolvedAlerts.length}
-          onShortcut={({title, notes, category}) => createRequest({ title, notes, category })}
-          onSendMessage={(text)=>sendChat(text)}
-        />
-      )}
-      {mobileTab === "requests" && (
-        <Requests
-          items={requests}
-          onCreate={(p)=>{ const rec={id:uid(),createdAt:Date.now(),status:"Open",...p}; setRequests([rec,...requests]); }}
-          onUpdate={(id,patch)=>setRequests(prev=>prev.map(r=>r.id===id?{...r,...patch}:r))}
-          onDelete={(id)=>setRequests(prev=>prev.filter(r=>r.id!==id))}
-          onOpen={(id)=>setActiveReqId(id)}
-        />
-      )}
-      {mobileTab === "profile" && (
-        <MobileProfile
-          name={name}
-          theme={theme}
-          privacy={privacy}
-          onToggleTheme={()=>setTheme(theme==="noir"?"ivory":"noir")}
-          onTogglePrivacy={()=>setPrivacy(privacy==="hide"?"show":"hide")}
-        />
-      )}
-      {mobileTab === "chat" && (
-        <MobileChat
-          name="Concierge"
-          messages={threadMsgs}
-          onSend={(t)=>sendChat(t)}
-          onBack={()=>setMobileTab("home")}
-        />
-      )}
-      <MobileTabs active={mobileTab} onChange={setMobileTab} />
-    </>
-  ) : screen.isTablet ? (
-    /* your TabletHome render (unchanged) */
-    <TabletHome
-      name={name}
-      nextEvent={nextEvent}
-      leaveInMin={leaveInMin}
-      pendingDecisions={pendingDecisions}
-      unresolvedAlerts={unresolvedAlerts}
-      nextTripSeg={nextTripSeg}
-      money={money}
-      onShortcut={({title, notes, category}) => createRequest({ title, notes, category })}
-    />
-  ) : (
-    /* your desktop ExecutiveDashboard render (unchanged) */
-    <ExecutiveDashboard
-      name={name}
-      hideSensitive={privacy==="hide"}
-      pendingDecisions={pendingDecisions}
-      unresolvedAlerts={unresolvedAlerts}
-      nextEvent={nextEvent}
-      leaveInMin={leaveInMin}
-      vehicles={vehicles}
-      properties={properties}
-      guests={guests}
-      inbox={inbox}
-      nextTripSeg={nextTripSeg}
-      money={money}
-      datesManual={datesManual}
-      assets={assets}
-      onApprove={(id)=>setDecisions(ds=>ds.map(d=>d.id===id?{...d,status:"Approved"}:d))}
-      onDecline={(id)=>setDecisions(ds=>ds.map(d=>d.id===id?{...d,status:"Declined"}:d))}
-      onDelegate={()=>{}}
-      onQuickMessage={()=>sendChat("Hi — can you assist?")}
-      onCreateRequest={(title,notes)=>createRequest({title,category:"General",notes})}
-    />
-  )
-)}
 
+          {/* ===== DASHBOARD ===== */}
+          {route==="dashboard" && (
+            screen.isPhone ? (
+              <>
+                {mobileTab === "home" && (
+                  <PhoneHome
+                    name={name}
+                    nextEvent={nextEvent}
+                    leaveInMin={leaveInMin}
+                    pendingCount={pendingDecisions.length}
+                    alertCount={unresolvedAlerts.length}
+                    onShortcut={({title, notes, category}) => createRequest({ title, notes, category })}
+                    onSendMessage={(text)=>sendChat(text)}
+                  />
+                )}
+                {mobileTab === "requests" && (
+                  <Requests
+                    items={requests}
+                    onCreate={(p)=>{ const rec={id:uid(),createdAt:Date.now(),status:"Open",...p}; setRequests([rec,...requests]); }}
+                    onUpdate={(id,patch)=>setRequests(prev=>prev.map(r=>r.id===id?{...r,...patch}:r))}
+                    onDelete={(id)=>setRequests(prev=>prev.filter(r=>r.id!==id))}
+                    onOpen={(id)=>setActiveReqId(id)}
+                    onShareToChat={(text)=>sendChat(text)}
+                  />
+                )}
+                {mobileTab === "profile" && (
+                  <PhoneProfile
+                    name={name}
+                    theme={theme}
+                    privacy={privacy}
+                    onToggleTheme={()=>setTheme(theme==="noir"?"ivory":"noir")}
+                    onTogglePrivacy={()=>setPrivacy(privacy==="hide"?"show":"hide")}
+                  />
+                )}
+                {mobileTab === "chat" && (
+                  <PhoneChat
+                    name="Concierge"
+                    messages={threadMsgs}
+                    onSend={(t)=>sendChat(t)}
+                    onBack={()=>{ setMobileTab("home"); markThreadRead(); }}
+                  />
+                )}
+                <PhoneTabs
+                  active={mobileTab}
+                  onChange={(k)=>{ setMobileTab(k); if(k==="home") markThreadRead(); }}
+                  badges={{ home: unreadCount, requests: openRequestsCount, profile: 0 }}
+                />
+              </>
+            ) : screen.isTablet ? (
+              <TabletHome
+                name={name}
+                nextEvent={nextEvent}
+                leaveInMin={leaveInMin}
+                pendingDecisions={pendingDecisions}
+                unresolvedAlerts={unresolvedAlerts}
+                nextTripSeg={nextTripSeg}
+                money={money}
+                onShortcut={({title, notes, category}) => createRequest({ title, notes, category })}
+              />
+            ) : (
+              <ExecutiveDashboard
+                name={name}
+                hideSensitive={hideSensitive}
+                pendingDecisions={pendingDecisions}
+                unresolvedAlerts={unresolvedAlerts}
+                nextEvent={nextEvent}
+                leaveInMin={leaveInMin}
+                vehicles={vehicles}
+                properties={properties}
+                guests={guests}
+                inbox={inbox}
+                nextTripSeg={nextTripSeg}
+                money={money}
+                datesManual={datesManual}
+                assets={assets}
+                onApprove={(id)=>setDecisions(ds=>ds.map(d=>d.id===id?{...d,status:"Approved"}:d))}
+                onDecline={(id)=>setDecisions(ds=>ds.map(d=>d.id===id?{...d,status:"Declined"}:d))}
+                onDelegate={()=>{}}
+                onQuickMessage={()=>sendChat("Hi — can you assist?")}
+                onCreateRequest={(title,notes)=>createRequest({title,category:"General",notes})}
+                onShare={(text)=>sendChat(text)}
+              />
+            )
+          )}
 
-
+          {/* ===== OTHER ROUTES ===== */}
           {route==="calendar" && (<CalendarPage events={events} setEvents={setEvents} />)}
           {route==="properties" && (<PropertiesPage items={properties} setItems={setProperties} quickRequest={(title,notes)=>createRequest({ title, category:"Home", notes })} />)}
           {route==="contacts" && (<ContactsPage contacts={contacts} setContacts={setContacts} />)}
@@ -294,12 +306,13 @@ const threadMsgs = useMemo(()=>messages.filter(m=>m.thread===lastThread).sort((a
               onUpdate={(id,patch)=>setRequests(prev=>prev.map(r=>r.id===id?{...r,...patch}:r))}
               onDelete={(id)=>setRequests(prev=>prev.filter(r=>r.id!==id))}
               onOpen={(id)=>setActiveReqId(id)}
+              onShareToChat={(text)=>sendChat(text)}
             />
           )}
         </main>
       </div>
 
-      {/* Request drawer & toasts */}
+      {/* Drawer & toasts */}
       {activeReqId && (
         <RequestDrawer
           mode={activeReqId==="new"?"new":"view"}
@@ -314,7 +327,9 @@ const threadMsgs = useMemo(()=>messages.filter(m=>m.thread===lastThread).sort((a
   );
 }
 
-/* ================= Shell & shared UI ================= */
+/* =======================================================================
+   Shell
+======================================================================= */
 function TopBar({ onNewRequest, theme, privacy, onToggleTheme, onTogglePrivacy, onExport, onImport }){
   return (
     <header className="topbar">
@@ -359,13 +374,14 @@ function SideBar({ route, onNavigate }){
   );
 }
 
-/* ================= Executive Dashboard ================= */
+/* =======================================================================
+   Executive Dashboard (desktop)
+======================================================================= */
 function ExecutiveDashboard({
   name, hideSensitive, pendingDecisions, unresolvedAlerts,
   nextEvent, leaveInMin, vehicles, properties, guests, inbox, nextTripSeg, money, datesManual, assets,
-  onApprove, onDecline, onDelegate, onQuickMessage, onCreateRequest
+  onApprove, onDecline, onDelegate, onQuickMessage, onCreateRequest, onShare
 }){
-  // Important dates derived (manual + from assets renewals)
   const datesDerived = useMemo(()=>{
     const fromAssets = (assets||[]).filter(a=>a.renewal).map(a=>({ id:`asset-${a.id}`, label:`${a.name} renewal`, date:a.renewal, source:"Assets"}));
     return [...(datesManual||[]).map(m=>({...m,source:"Manual"})), ...fromAssets]
@@ -380,7 +396,7 @@ function ExecutiveDashboard({
 
   return (
     <div className="container">
-      {/* Top strip: Decisions • Now/Next • Alerts • Quick message */}
+      {/* Strip */}
       <div className="strip">
         <div className="strip-item">
           <div className="badge">{pendingDecisions.length}</div>
@@ -409,7 +425,6 @@ function ExecutiveDashboard({
         </div>
       </div>
 
-      {/* Grid: 3 x 2 */}
       <div className="grid-3">
         {/* Decisions */}
         <section className="section">
@@ -448,6 +463,7 @@ function ExecutiveDashboard({
                 <div style={{fontWeight:600}}>{t.summary}</div>
                 <div className="row-actions" style={{marginTop:8}}>
                   <button className="btn btn-ghost" onClick={()=>onCreateRequest(`Action: ${t.summary}`, `From ${t.from}`)}>Create request</button>
+                  <button className="btn btn-ghost" onClick={()=>onShare?.(`${t.from}: ${t.summary}`)}>Share</button>
                   <button className="btn btn-ghost">👍</button>
                 </div>
               </div>
@@ -519,7 +535,7 @@ function ExecutiveDashboard({
           </div>
         </section>
 
-        {/* Important dates */}
+        {/* Dates */}
         <section className="section">
           <div className="section-header"><h3 className="h-with-rule">Important Dates (30 days)</h3></div>
           {datesDerived.length===0 ? <div className="mono-note">No upcoming dates.</div> : (
@@ -535,7 +551,7 @@ function ExecutiveDashboard({
         </section>
       </div>
 
-      {/* Alerts card spans full width */}
+      {/* Alerts */}
       <section className="section" style={{marginTop:16}}>
         <div className="section-header"><h3 className="h-with-rule">Critical Alerts</h3><div className="meta">{unresolvedAlerts.length}</div></div>
         {unresolvedAlerts.length===0 ? <div className="mono-note">All clear.</div> : (
@@ -547,7 +563,7 @@ function ExecutiveDashboard({
                   <div className="row-sub">{a.source} · {new Date(a.at).toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})}</div>
                 </div>
                 <div className="row-actions">
-                  <button className="btn btn-ghost" onClick={()=>a.resolveAction?.()}>Resolve</button>
+                  <button className="btn btn-ghost" onClick={()=>{/* reserved for real resolve */}}>Resolve</button>
                 </div>
               </div>
             ))}
@@ -558,7 +574,206 @@ function ExecutiveDashboard({
   );
 }
 
-/* ================= Calendar ================= */
+/* =======================================================================
+   Phone (iPhone) — premium, minimal, no emojis
+======================================================================= */
+function PhoneTabs({ active, onChange, badges = {} }){
+  const Item = ({ k, label, icon }) => (
+    <button className={active===k ? "active" : ""} onClick={()=>onChange(k)} aria-label={label}>
+      <span className="icon">{icon}</span>
+      <span className="label">{label}</span>
+      {!!badges[k] && <span className="tab-badge">{badges[k] > 99 ? "99+" : badges[k]}</span>}
+    </button>
+  );
+  return (
+    <nav className="tabbar">
+      <Item k="home"     label="Home"     icon="⌂" />
+      <Item k="requests" label="Requests" icon="⋯" />
+      <Item k="profile"  label="Profile"  icon="⚙︎" />
+    </nav>
+  );
+}
+
+function PhoneHome({ name="Client", nextEvent, leaveInMin, pendingCount=0, alertCount=0, onShortcut, onSendMessage }){
+  const first = String(name).split(" ")[0] || name;
+  const h = new Date().getHours();
+  const greet = h >= 18 ? "Good Evening" : h >= 12 ? "Good Afternoon" : "Good Morning";
+  const actions = [
+    { t:"Dining reservation", s:"Cuisine, time, guests", c:"Dining" },
+    { t:"Hotel booking", s:"City, dates, room type", c:"Travel" },
+    { t:"Flight arrangements", s:"Route, dates, class", c:"Travel" },
+    { t:"Event access", s:"Event, date, passes", c:"Access" },
+    { t:"Gifting / shopping", s:"Recipient, budget, delivery by", c:"Gifting" },
+    { t:"Car / chauffeur", s:"Pickup, time, bags", c:"Transport" },
+  ];
+  const [msg, setMsg] = useState("");
+  const send = ()=>{ if(!msg.trim()) return; onSendMessage?.(msg.trim()); setMsg(""); };
+
+  return (
+    <div className="mobile-shell">
+      <header className="mobile-header" style={{background:
+        "linear-gradient(180deg, rgba(10,10,10,1) 0%, rgba(8,8,8,1) 100%)",
+        borderBottomLeftRadius:18, borderBottomRightRadius:18}}>
+        <div style={{display:"grid", gap:6}}>
+          <div style={{fontSize:18, fontWeight:700, letterSpacing:"0.01em"}}>{greet}, {first}.</div>
+          <div className="mh-sub" style={{opacity:.9}}>
+            {nextEvent ? `${nextEvent.time} — ${nextEvent.title}` : "No upcoming events"}
+            {typeof leaveInMin === "number" && (
+              <span className={`pill ${leaveInMin <= 0 ? "pill--late" : ""}`}>
+                {leaveInMin > 0 ? `Leave in ${leaveInMin}m` : `Late ${Math.abs(leaveInMin)}m`}
+              </span>
+            )}
+          </div>
+          <div className="mh-status" style={{opacity:.85}}>
+            <span className="badge">{pendingCount}</span> Decisions
+            <span className={`badge ${alertCount ? "badge--alert" : ""}`} style={{marginLeft:8}}>{alertCount}</span> Alerts
+          </div>
+        </div>
+      </header>
+
+      <div style={{padding:"14px", display:"grid", gap:10}}>
+        {actions.map((a,i)=>(
+          <button key={i}
+            className="action action--lg"
+            style={{background:"var(--surface)", border:"1px solid var(--line)", borderRadius:16, padding:"14px 16px", textAlign:"left"}}
+            onClick={()=>onShortcut?.({title:a.t, notes:a.s, category:a.c})}>
+            <div style={{display:"grid", gap:4}}>
+              <div style={{fontWeight:600}}>{a.t}</div>
+              <div className="a-sub" style={{fontSize:13, color:"var(--ink-3)"}}>{a.s}</div>
+            </div>
+            <span className="a-arrow" style={{marginLeft:"auto", opacity:.45, fontSize:20}}>›</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="mobile-chatbar" style={{backdropFilter:"saturate(120%) blur(8px)"}}>
+        <input
+          className="chat-input"
+          placeholder="Message your concierge…"
+          value={msg}
+          onChange={e=>setMsg(e.target.value)}
+          onKeyDown={e=>e.key==="Enter"&&send()}
+        />
+        <button className="chat-send btn btn-primary ring" onClick={send}>Send</button>
+      </div>
+    </div>
+  );
+}
+
+function PhoneChat({ name="Concierge", messages=[], onSend, onBack }){
+  const [text,setText]=useState("");
+  const send=()=>{ if(!text.trim()) return; onSend?.(text.trim()); setText(""); };
+  useEffect(()=>{ const el=document.querySelector(".chat-log"); el?.scrollTo(0, el.scrollHeight); },[messages]);
+
+  return (
+    <div className="chat-view">
+      <header className="mobile-header" style={{borderRadius:0, background:"linear-gradient(180deg,#0c0c0c,#080808)"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <button className="btn btn-ghost ring" onClick={onBack}>‹ Back</button>
+          <div className="mh-greeting">{name}</div>
+          <div style={{width:56}} />
+        </div>
+      </header>
+
+      <div className="chat-log" style={{padding:12}}>
+        {messages.map(m=>(
+          <div key={m.id} className={`chat-msg ${m.from==="me"?"me":"them"}`}>
+            <div style={{fontSize:14}}>{m.text}</div>
+            <div className="row-sub" style={{marginTop:4}}>
+              {new Date(m.at).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="chat-composer">
+        <input className="chat-input" placeholder="Type a message…" value={text}
+               onChange={e=>setText(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()} />
+        <button className="chat-send btn btn-primary ring" onClick={send}>Send</button>
+      </div>
+    </div>
+  );
+}
+function PhoneProfile({ name="Client", theme, privacy, onToggleTheme, onTogglePrivacy }){
+  const first=(String(name).split(" ")[0])||name;
+  return (
+    <div className="mobile-shell" style={{padding:16}}>
+      <h3 className="h-with-rule" style={{marginTop:0}}>Profile</h3>
+      <div className="card" style={{marginBottom:12}}>
+        <div className="dec-title" style={{marginTop:0}}>Welcome, {first}</div>
+        <div className="row-sub">Device preferences</div>
+      </div>
+      <button className="action" style={{display:"flex",gap:12,alignItems:"center",padding:"14px 16px",border:"1px solid var(--line)",borderRadius:16,background:"var(--surface)"}}
+              onClick={onToggleTheme}>
+        <div className="a-label" style={{fontWeight:600}}>Theme</div>
+        <div className="a-sub" style={{marginLeft:"auto", color:"var(--ink-3)"}}>{theme==="noir"?"Noir (dark)":"Ivory (light)"}</div>
+        <span className="a-arrow" style={{opacity:.45, fontSize:20}}>›</span>
+      </button>
+      <button className="action" style={{display:"flex",gap:12,alignItems:"center",padding:"14px 16px",border:"1px solid var(--line)",borderRadius:16,background:"var(--surface)", marginTop:8}}
+              onClick={onTogglePrivacy}>
+        <div className="a-label" style={{fontWeight:600}}>Privacy</div>
+        <div className="a-sub" style={{marginLeft:"auto", color:"var(--ink-3)"}}>{privacy==="hide"?"Sensitive hidden":"Sensitive visible"}</div>
+        <span className="a-arrow" style={{opacity:.45, fontSize:20}}>›</span>
+      </button>
+    </div>
+  );
+}
+
+/* =======================================================================
+   Tablet Home (compact)
+======================================================================= */
+function TabletHome({ name="Client", nextEvent, leaveInMin, pendingDecisions=[], unresolvedAlerts=[], nextTripSeg, onShortcut, money }){
+  const first = String(name).split(" ")[0] || name;
+  const shortcuts = [
+    { t:"Book hotel", n:"City, dates, room type", c:"Travel" },
+    { t:"Book restaurant", n:"Cuisine, time, pax", c:"Dining" },
+    { t:"Book flights", n:"Route, dates, class", c:"Travel" },
+    { t:"Get event access", n:"Event, date, #passes", c:"Access" },
+    { t:"Gift / shopping", n:"Recipient, budget, deliver by", c:"Gifting" },
+    { t:"Chauffeur / car", n:"Pickup, time, bags", c:"Transport" },
+  ];
+  return (
+    <div className="tablet-grid container">
+      <section className="section">
+        <div className="section-header"><h3 className="h-with-rule">How may we assist today, {first}?</h3></div>
+        <div className="tablet-actions">
+          {shortcuts.map((s,i)=>(
+            <button key={i} className="action action--lg"
+              onClick={()=>onShortcut?.({title:s.t, notes:s.n, category:s.c})}>
+              <span className="a-label">{s.t}</span>
+              <span className="a-sub">{s.n}</span>
+              <span className="a-arrow">›</span>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="section">
+        <div className="section-header"><h3 className="h-with-rule">Today</h3></div>
+        <div className="list">
+          <div className="dec-card">
+            <div className="dec-head"><span className="chip">Next</span></div>
+            <div className="dec-title">{nextEvent ? `${nextEvent.time} — ${nextEvent.title}` : "No upcoming events"}</div>
+            <div className="dec-sub">
+              {nextEvent?.location || "—"}
+              {typeof leaveInMin==="number" && <span className={`pill ${leaveInMin<=0?"pill--late":""}`} style={{marginLeft:8}}>
+                {leaveInMin>0?`Leave in ${leaveInMin}m`:`Late ${Math.abs(leaveInMin)}m`}
+              </span>}
+            </div>
+          </div>
+          <div className="dec-card"><div className="dec-head"><span className="chip">Decisions</span></div><div className="dec-title">{pendingDecisions.length} pending</div></div>
+          <div className="dec-card"><div className="dec-head"><span className="chip">Alerts</span></div><div className="dec-title">{unresolvedAlerts.length ? unresolvedAlerts[0].message : "All clear"}</div><div className="dec-sub">{unresolvedAlerts.length} open</div></div>
+          <div className="dec-card"><div className="dec-head"><span className="chip">Travel</span></div><div className="dec-title">{nextTripSeg ? `${nextTripSeg.date} ${nextTripSeg.time} — ${nextTripSeg.detail}` : "No upcoming segments"}</div></div>
+          <div className="dec-card"><div className="dec-head"><span className="chip">Spend</span></div><div className="dec-title">MTD Discretionary</div><div className="dec-sub">£{Number(money?.mtdDiscretionary||0).toLocaleString()}</div></div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+/* =======================================================================
+   Calendar
+======================================================================= */
 function CalendarPage({ events, setEvents }){
   const [focus,setFocus]=useState(weekStart(Date.now()));
   const days=[0,1,2,3,4,5,6].map(i=>{ const d=new Date(focus); d.setDate(focus.getDate()+i); return d; });
@@ -635,7 +850,9 @@ function CalendarPage({ events, setEvents }){
   );
 }
 
-/* ================= Properties ================= */
+/* =======================================================================
+   Properties
+======================================================================= */
 function PropertiesPage({ items, setItems, quickRequest }){
   const [draft,setDraft]=useState(null);
   function save(){
@@ -692,7 +909,9 @@ function PropertiesPage({ items, setItems, quickRequest }){
   );
 }
 
-/* ================= Contacts ================= */
+/* =======================================================================
+   Contacts
+======================================================================= */
 function ContactsPage({ contacts, setContacts }){
   const [q,setQ]=useState(""); const [draft,setDraft]=useState(null);
   const filtered = useMemo(()=>contacts.filter(c=>q.trim()? (c.name+c.role+c.email+c.phone).toLowerCase().includes(q.toLowerCase()):true).sort((a,b)=>a.name.localeCompare(b.name)),[contacts,q]);
@@ -766,7 +985,9 @@ function ContactsPage({ contacts, setContacts }){
   );
 }
 
-/* ================= Travel ================= */
+/* =======================================================================
+   Travel
+======================================================================= */
 function TravelPage({ trips, setTrips, toICS }){
   const [draftTrip,setDraftTrip]=useState(null);
   function saveTrip(){ if(!draftTrip?.title?.trim()) return; if(draftTrip.id){ setTrips(ts=>ts.map(t=>t.id===draftTrip.id?draftTrip:t)); } else{ setTrips(ts=>[{...draftTrip,id:uid(),segments:draftTrip.segments||[]},...ts]); } setDraftTrip(null); }
@@ -831,7 +1052,9 @@ function TravelPage({ trips, setTrips, toICS }){
   );
 }
 
-/* ================= Assets ================= */
+/* =======================================================================
+   Assets
+======================================================================= */
 function AssetsPage({ assets, setAssets }){
   const [draft,setDraft]=useState(null);
   const types=["Vehicle","Vessel","Art","Property","Other"];
@@ -904,7 +1127,9 @@ function AssetsPage({ assets, setAssets }){
   );
 }
 
-/* ================= Important Dates ================= */
+/* =======================================================================
+   Dates
+======================================================================= */
 function DatesPage({ manual, setManual, assets }){
   const [draft,setDraft]=useState(null);
   const derived = useMemo(()=>{
@@ -979,8 +1204,10 @@ function DatesPage({ manual, setManual, assets }){
   );
 }
 
-/* ================= Requests ================= */
-function Requests({ items, onCreate, onUpdate, onDelete, onOpen }){
+/* =======================================================================
+   Requests + Drawer
+======================================================================= */
+function Requests({ items, onCreate, onUpdate, onDelete, onOpen, onShareToChat }){
   const [q,setQ]=useState(""); const [status,setStatus]=useState("All"); const [prio,setPrio]=useState("All");
   const filtered = useMemo(()=>items
     .filter(r=>status==="All"?true:r.status===status)
@@ -1002,7 +1229,7 @@ function Requests({ items, onCreate, onUpdate, onDelete, onOpen }){
 
       <div className="section">
         <table className="table">
-          <thead><tr><th style={{width:"34%"}}>Title</th><th>Status</th><th>Priority</th><th>Due</th><th>Assignee</th><th style={{width:140}}>Actions</th></tr></thead>
+          <thead><tr><th style={{width:"34%"}}>Title</th><th>Status</th><th>Priority</th><th>Due</th><th>Assignee</th><th style={{width:220}}>Actions</th></tr></thead>
         </table>
         <div className="table-scroll">
           <table className="table">
@@ -1016,6 +1243,7 @@ function Requests({ items, onCreate, onUpdate, onDelete, onOpen }){
                   <td>{r.assignee||"—"}</td>
                   <td>
                     <div className="row-actions">
+                      <button className="btn btn-ghost" onClick={(e)=>{e.stopPropagation(); onShareToChat?.(`${r.title} — ${r.status}${r.dueDate?` · due ${r.dueDate}`:""}`);}}>Share to chat</button>
                       {r.status!=="Done" && <button className="btn btn-ghost" onClick={(e)=>{e.stopPropagation(); onUpdate(r.id,{status:"Done"});}}>Mark done</button>}
                       {r.status==="Open" && <button className="btn btn-ghost" onClick={(e)=>{e.stopPropagation(); onUpdate(r.id,{status:"In Progress"});}}>Start</button>}
                       <button className="btn btn-ghost" onClick={(e)=>{e.stopPropagation(); onDelete(r.id);}}>Delete</button>
@@ -1067,12 +1295,16 @@ function RequestDrawer({ mode, request, onClose, onCreate, onUpdate }){
   );
 }
 
-/* ================= Small components ================= */
+/* =======================================================================
+   Small components
+======================================================================= */
 function TagStatus({ value }){ const cls=value==="Open"?"tag tag--open":value==="In Progress"?"tag tag--progress":"tag tag--done"; return <span className={cls}>{value}</span>; }
 function TagPriority({ value }){ const cls=value==="Urgent"?"tag tag--urgent":value==="High"?"tag tag--high":value==="Medium"?"tag tag--medium":"tag tag--low"; return <span className={cls}>{value}</span>; }
 function ToastHost({ items }){ return (<div className="toast-host">{items.map(t=>(<div key={t.id} className={`toast ${t.tone==="info"?"toast--info":"toast--ok"}`}>{t.tone==="info"?"•":"✓"} <span>{t.msg}</span></div>))}</div>); }
 
-/* ================= Onboarding (same structure as before) ================= */
+/* =======================================================================
+   Onboarding (trimmed)
+======================================================================= */
 function OnboardingForm({ data, onChange, onComplete }){
   const [step,setStep]=useState(1); const total=8;
   function setSection(section,patch){ onChange({ ...data, [section]:{ ...(data[section]||{}), ...patch } }); }
@@ -1120,7 +1352,6 @@ function OnboardingForm({ data, onChange, onComplete }){
           <OnbNav onBack={()=>setStep(1)} onNext={()=>setStep(3)} />
         </Card>
       )}
-      {/* steps 3..8 identical to previous version */}
       {step>=3 && step<=8 && (
         <Card title={`${step}. Continue setup`}>
           <div className="mono-note">Use the previously added onboarding fields. (Kept concise here.)</div>

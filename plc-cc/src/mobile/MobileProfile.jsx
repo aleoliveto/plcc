@@ -10,16 +10,12 @@ export default function MobileProfile({ name="Client", theme, privacy, onToggleT
         <div className="row-sub">Personal settings for your device.</div>
       </div>
       <button className="action" onClick={onToggleTheme}>
-        <span className="a-emoji">🎨</span>
-        <span className="a-label">Theme</span>
-        <span className="a-sub">{theme==="noir"?"Noir (dark)":"Ivory (light)"}</span>
-        <span className="a-arrow">›</span>
+        <span className="a-emoji">🎨</span><span className="a-label">Theme</span>
+        <span className="a-sub">{theme==="noir"?"Noir (dark)":"Ivory (light)"}</span><span className="a-arrow">›</span>
       </button>
       <button className="action" onClick={onTogglePrivacy} style={{marginTop:8}}>
-        <span className="a-emoji">🫥</span>
-        <span className="a-label">Privacy</span>
-        <span className="a-sub">{privacy==="hide"?"Sensitive hidden":"Sensitive visible"}</span>
-        <span className="a-arrow">›</span>
+        <span className="a-emoji">🫥</span><span className="a-label">Privacy</span>
+        <span className="a-sub">{privacy==="hide"?"Sensitive hidden":"Sensitive visible"}</span><span className="a-arrow">›</span>
       </button>
     </div>
   );

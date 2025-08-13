@@ -7,8 +7,5 @@ export function useScreen() {
     window.addEventListener("resize", onR);
     return () => window.removeEventListener("resize", onR);
   }, []);
-  const isPhone = w <= 480;
-  const isTablet = w > 480 && w <= 1024;
-  const isDesktop = w > 1024;
-  return { width: w, isPhone, isTablet, isDesktop };
+  return { width: w, isPhone: w <= 480, isTablet: w > 480 && w <= 1024, isDesktop: w > 1024 };
 }

@@ -10,18 +10,16 @@ export default function MobileHome({
   onSendMessage      // (text) => void
 }) {
   const first = String(name).split(" ")[0] || name;
-  const hour = new Date().getHours();
-  const greet = hour >= 18 ? "Good Evening" : hour >= 12 ? "Good Afternoon" : "Good Morning";
-
+  const h = new Date().getHours();
+  const greet = h >= 18 ? "Good Evening" : h >= 12 ? "Good Afternoon" : "Good Morning";
   const shortcuts = [
     { label: "I want to book a hotel", emoji: "🏨", title: "Book hotel", notes: "City, dates, room type, vibe", category: "Travel" },
     { label: "Book me a table", emoji: "🍽️", title: "Book restaurant", notes: "Cuisine, date, time, pax, vibe", category: "Dining" },
     { label: "I need flight tickets", emoji: "✈️", title: "Book flights", notes: "Route, dates, pax, class, seats", category: "Travel" },
     { label: "I want to travel", emoji: "🧳", title: "Plan trip", notes: "Destination, dates, interests", category: "Travel" },
     { label: "I’m looking for events", emoji: "🎟️", title: "Get event access", notes: "Event, date, #passes", category: "Access" },
-    { label: "Personal shopping / gifts", emoji: "🎁", title: "Gift / shopping", notes: "Recipient, occasion, budget, deliver by", category: "Gifting" },
+    { label: "Personal shopping / gifts", emoji: "🎁", title: "Gift / shopping", notes: "Recipient, budget, deliver by", category: "Gifting" },
   ];
-
   const [msg, setMsg] = useState("");
   const send = () => { if (!msg.trim()) return; onSendMessage?.(msg.trim()); setMsg(""); };
 

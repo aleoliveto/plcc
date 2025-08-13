@@ -18,9 +18,7 @@ export default function TabletHome({
   return (
     <div className="tablet-grid container">
       <section className="section">
-        <div className="section-header">
-          <h3 className="h-with-rule">How may we assist today, {first}?</h3>
-        </div>
+        <div className="section-header"><h3 className="h-with-rule">How may we assist today, {first}?</h3></div>
         <div className="tablet-actions">
           {shortcuts.map((s,i)=>(
             <button key={i} className="action action--lg"
@@ -47,28 +45,10 @@ export default function TabletHome({
               </span>}
             </div>
           </div>
-
-          <div className="dec-card">
-            <div className="dec-head"><span className="chip">Decisions</span></div>
-            <div className="dec-title">{pendingDecisions.length} pending</div>
-          </div>
-
-          <div className="dec-card">
-            <div className="dec-head"><span className="chip">Alerts</span></div>
-            <div className="dec-title">{unresolvedAlerts.length ? unresolvedAlerts[0].message : "All clear"}</div>
-            <div className="dec-sub">{unresolvedAlerts.length} open</div>
-          </div>
-
-          <div className="dec-card">
-            <div className="dec-head"><span className="chip">Travel</span></div>
-            <div className="dec-title">{nextTripSeg ? `${nextTripSeg.date} ${nextTripSeg.time} — ${nextTripSeg.detail}` : "No upcoming segments"}</div>
-          </div>
-
-          <div className="dec-card">
-            <div className="dec-head"><span className="chip">Spend</span></div>
-            <div className="dec-title">MTD Discretionary</div>
-            <div className="dec-sub">£{Number(money?.mtdDiscretionary||0).toLocaleString()}</div>
-          </div>
+          <div className="dec-card"><div className="dec-head"><span className="chip">Decisions</span></div><div className="dec-title">{pendingDecisions.length} pending</div></div>
+          <div className="dec-card"><div className="dec-head"><span className="chip">Alerts</span></div><div className="dec-title">{unresolvedAlerts.length ? unresolvedAlerts[0].message : "All clear"}</div><div className="dec-sub">{unresolvedAlerts.length} open</div></div>
+          <div className="dec-card"><div className="dec-head"><span className="chip">Travel</span></div><div className="dec-title">{nextTripSeg ? `${nextTripSeg.date} ${nextTripSeg.time} — ${nextTripSeg.detail}` : "No upcoming segments"}</div></div>
+          <div className="dec-card"><div className="dec-head"><span className="chip">Spend</span></div><div className="dec-title">MTD Discretionary</div><div className="dec-sub">£{Number(money?.mtdDiscretionary||0).toLocaleString()}</div></div>
         </div>
       </section>
     </div>
