@@ -12,6 +12,14 @@
     <link rel="apple-touch-icon" href="/icons/icon-192.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <!-- Set theme before React mounts to avoid flash / wrong colors -->
+<script>
+  (function(){
+    var t = localStorage.getItem('plc_theme') || 'noir';
+    document.addEventListener('DOMContentLoaded', function(){ document.body.dataset.theme = t; });
+  })();
+</script>
+<meta name="color-scheme" content="light dark" />
 
     <script type="module" src="/src/main.jsx"></script>
   </head>

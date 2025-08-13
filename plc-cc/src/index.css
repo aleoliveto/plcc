@@ -431,3 +431,88 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .mono-note { color: var(--ink-3); font-size: 12px; font-variant-numeric: tabular-nums; }
 .row-click { transition: background .15s ease; }
 .hidden { display: none !important; }
+/* ===== Mobile Premium Overrides (iPhone) ===== */
+@media (max-width: 480px) {
+  /* Safer, explicit palette (no color-mix) */
+  body[data-theme="noir"] {
+    --paper: #0f0f0f;
+    --surface: #141414;
+    --ink: #F4F2EC;
+    --ink-2: #D7D3C8;
+    --ink-3: #A9A69D;
+    --line: #232323;
+  }
+  body[data-theme="ivory"] {
+    --paper: #FAF9F6;
+    --surface: #FFFFFF;
+    --ink: #121212;
+    --ink-2: #3A3A3A;
+    --ink-3: #6D6A63;
+    --line: #E7E3DC;
+  }
+
+  /* Reduce tap highlight and keep text crisp */
+  body { -webkit-tap-highlight-color: transparent; text-rendering: optimizeLegibility; }
+
+  /* Inputs look odd on iOS without this */
+  input, select, textarea { -webkit-appearance: none; background-clip: padding-box; }
+
+  /* Ensure nothing gets hidden under bottom UI */
+  .mobile-shell { padding-bottom: 128px; } /* chat bar + tab bar */
+
+  /* Header slab: explicit gradient (no color-mix) */
+  .mobile-header {
+    background: radial-gradient(120% 120% at 0% 0%, rgba(255,255,255,.10) 0%, rgba(255,255,255,0) 60%),
+                linear-gradient(180deg, #0b0b0b 0%, #0a0a0a 100%);
+    color: #fff;
+    border-bottom-left-radius: 18px;
+    border-bottom-right-radius: 18px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.28);
+  }
+
+  /* Action rows: higher contrast, calmer */
+  .action {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    color: var(--ink);
+  }
+  .action--lg .a-label { font-weight: 600; }
+  .action--lg .a-sub { color: var(--ink-3); }
+  .action .a-arrow { opacity: .45; }
+
+  /* Chat composer: above tab bar, never hidden */
+  .mobile-chatbar {
+    position: fixed;
+    left: 0; right: 0;
+    bottom: 56px;          /* sits above the tab bar */
+    z-index: 60;           /* ensure above tabbar (which is z-index: 50) */
+    background: var(--paper);
+    border-top: 1px solid var(--line);
+    backdrop-filter: saturate(120%) blur(8px);
+  }
+  .chat-input { background: var(--surface); border: 1px solid var(--line); color: var(--ink); }
+  .chat-input::placeholder { color: var(--ink-3); }
+  .chat-send { background: var(--btn); color: var(--btn-ink); border: 1px solid rgba(0,0,0,.08); }
+
+  /* Chat bubbles: balanced contrast */
+  .chat-msg.me { background: #171717; border-color: #232323; color: var(--ink); }
+  .chat-msg.them { background: #0e0e0e; border-color: #000; color: #F4F2EC; }
+
+  /* Tab bar: explicit colors (no color-mix) */
+  .tabbar {
+    background: var(--surface);
+    border-top: 1px solid var(--line);
+    z-index: 50;
+    box-shadow: 0 2px 8px rgba(0,0,0,.08), 0 -10px 30px rgba(0,0,0,.12);
+  }
+  .tabbar button { color: var(--ink-3); }
+  .tabbar button.active { color: var(--ink); font-weight: 600; }
+
+  /* Badge contrast per theme */
+  body[data-theme="ivory"] .tab-badge { background: #111; color: #fff; }
+  body[data-theme="noir"]  .tab-badge { background: #EDE9DF; color: #0f0f0f; }
+
+  /* Pills & chips: explicit backgrounds */
+  .pill { background: #edf1ea; border: 1px solid var(--line); }
+  .pill--late { background: #fff1f1; }
+}

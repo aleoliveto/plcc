@@ -1,4 +1,4 @@
-const CACHE = "plcc-v1";
+const CACHE = "plcc-v2";
 const ASSETS = [ "/", "/index.html", "/manifest.webmanifest" ];
 
 self.addEventListener("install", (e) => {
