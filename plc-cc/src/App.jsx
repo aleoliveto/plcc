@@ -1,8 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 
-/* ===========================
-   Small helpers
-=========================== */
+/* ---------------- Helpers ---------------- */
 function uid() {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 }
@@ -38,15 +36,19 @@ export default function App() {
   const [onboarding, setOnboarding] = useLocalState("plc_onboarding_v1", {});
   const [requests, setRequests] = useLocalState("plc_requests_v1", SEED_REQUESTS);
 
+  // Theme (Ivory / Noir)
+  const [theme, setTheme] = useLocalState("plc_theme", "ivory");
+  useEffect(() => { document.body.dataset.theme = theme; }, [theme]);
+
   // Toasts
   const [toasts, setToasts] = useState([]);
   function notify(message, tone = "success") {
     const id = uid();
     setToasts(t => [...t, { id, message, tone }]);
-    setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 3500);
+    setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 3200);
   }
 
-  // Request Drawer & Chat Drawer
+  // Request detail drawer + Chat
   const [activeReqId, setActiveReqId] = useState(null);
   const activeReq = requests.find(r => r.id === activeReqId) || null;
   const [chatOpen, setChatOpen] = useState(false);
@@ -55,7 +57,6 @@ export default function App() {
     { id: uid(), who: "me", text: "Perfect. Please add a table for 4 on Saturday 20:00 somewhere quiet.", at: Date.now()-7100_000 },
   ]);
 
-  // Derived briefing
   const briefing = useMemo(() => {
     const name = onboarding.personal?.preferredName || onboarding.personal?.fullName || "Client";
     const comms = onboarding.comms?.dailyUpdate || "WhatsApp";
@@ -90,20 +91,13 @@ export default function App() {
     if (activeReqId === id) setActiveReqId(null);
   }
 
-  // Keyboard shortcuts: "n" = new request, "/" = search on Requests page, "c" = chat
-  useEffect(() => {
-    function onKey(e) {
-      if (e.key === "n") { setRoute("requests"); setActiveReqId("new"); e.preventDefault(); }
-      if (e.key === "/") { setRoute("requests"); setActiveReqId(null); e.preventDefault(); }
-      if (e.key.toLowerCase() === "c") { setChatOpen(true); }
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [activeReqId]);
-
   return (
     <div className="app">
-      <TopBar onNewRequest={() => { setRoute("requests"); setActiveReqId("new"); }} />
+      <TopBar
+        theme={theme}
+        onToggleTheme={() => setTheme(theme === "noir" ? "ivory" : "noir")}
+        onNewRequest={() => { setRoute("requests"); setActiveReqId("new"); }}
+      />
       <div className="shell">
         <SideBar route={route} onNavigate={setRoute} />
         <main className="main">
@@ -128,7 +122,11 @@ export default function App() {
           )}
 
           {route === "onboarding" && (
-            <OnboardingForm data={onboarding} onChange={setOnboarding} onComplete={() => { setRoute("dashboard"); notify("Onboarding saved"); }} />
+            <OnboardingForm
+              data={onboarding}
+              onChange={setOnboarding}
+              onComplete={() => { setRoute("dashboard"); notify("Onboarding saved"); }}
+            />
           )}
 
           {route === "requests" && (
@@ -147,12 +145,10 @@ export default function App() {
         </main>
       </div>
 
-      {/* Floating Chat button */}
-      <button className="fab" title="Concierge Chat (c)" onClick={() => setChatOpen(true)}>
-        <svg viewBox="0 0 24 24" className="icon-18"><path d="M21 12a8 8 0 11-3.1-6.3L22 4l-1.8 3.9A8 8 0 0121 12z" fill="currentColor" opacity=".15"/><path d="M12 20c4.4 0 8-3.1 8-7s-3.6-7-8-7-8 3.1-8 7c0 1.5.5 2.9 1.4 4.1L4 22l5.3-2.3c.8.2 1.7.3 2.7.3z" stroke="currentColor" strokeWidth="1.3" fill="none"/></svg>
+      {/* Concierge chat and request drawer */}
+      <button className="fab" title="Concierge chat" onClick={() => setChatOpen(true)}>
+        <svg viewBox="0 0 24 24" className="icon-18"><path d="M12 20c4.4 0 8-3.1 8-7s-3.6-7-8-7-8 3.1-8 7c0 1.5.5 2.9 1.4 4.1L4 22l5.3-2.3c.8.2 1.7.3 2.7.3z" stroke="currentColor" strokeWidth="1.3" fill="none"/></svg>
       </button>
-
-      {/* Drawers & Toasts */}
       {activeReqId && (
         <RequestDrawer
           mode={activeReqId === "new" ? "new" : "view"}
@@ -178,10 +174,8 @@ export default function App() {
   );
 }
 
-/* ===========================
-   Shell
-=========================== */
-function TopBar({ onNewRequest }) {
+/* ---------------- Shell ---------------- */
+function TopBar({ onNewRequest, theme, onToggleTheme }) {
   return (
     <header className="topbar">
       <div className="topbar-inner">
@@ -193,8 +187,10 @@ function TopBar({ onNewRequest }) {
           </div>
         </div>
         <div className="actions">
-          <button className="btn btn-primary" onClick={onNewRequest}>New Request</button>
-          <button className="btn btn-ghost">Profile</button>
+          <button className="btn btn-ghost ring" onClick={onToggleTheme}>
+            {theme === "noir" ? "Ivory" : "Noir"}
+          </button>
+          <button className="btn btn-primary ring" onClick={onNewRequest}>New Request</button>
         </div>
       </div>
     </header>
@@ -202,9 +198,9 @@ function TopBar({ onNewRequest }) {
 }
 function PLMonogram() {
   return (
-    <svg width="26" height="26" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M18 50V14h9c9 0 15 5 15 13 0 8-6 13-15 13h-4v10h-5zm9-18c6 0 10-3 10-8s-4-8-10-8h-4v16h4z" fill="#151515"/>
-      <path d="M41 14h5v36h-5c-10 0-17-7-17-18s7-18 17-18z" fill="#151515" opacity=".9"/>
+    <svg width="26" height="26" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+      <path d="M18 50V14h9c9 0 15 5 15 13 0 8-6 13-15 13h-4v10h-5zm9-18c6 0 10-3 10-8s-4-8-10-8h-4v16h4z" fill="currentColor"/>
+      <path d="M41 14h5v36h-5c-10 0-17-7-17-18s7-18 17-18z" fill="currentColor" opacity=".9"/>
     </svg>
   );
 }
@@ -222,9 +218,7 @@ function SideBar({ route, onNavigate }) {
   );
 }
 
-/* ===========================
-   Summary strip
-=========================== */
+/* ---------------- Summary strip ---------------- */
 function SummaryStrip({ name, openCount, nextTrip, comms, onNewRequest }) {
   return (
     <div className="summary">
@@ -241,7 +235,7 @@ function SummaryStrip({ name, openCount, nextTrip, comms, onNewRequest }) {
       </div>
 
       <div className="summary__cta">
-        <button className="btn btn-primary" onClick={onNewRequest}>New Request</button>
+        <button className="btn btn-primary ring" onClick={onNewRequest}>New Request</button>
       </div>
     </div>
   );
@@ -259,7 +253,7 @@ function Section({ title, right, children }) {
   return (
     <section className="section">
       <div className="section-header">
-        <h3>{title}</h3>
+        <h3 className="h-with-rule">{title}</h3>
         <div className="meta">{right}</div>
       </div>
       {children}
@@ -268,9 +262,7 @@ function Section({ title, right, children }) {
 }
 function Stat({ label, value }) { return (<div className="stat"><span className="stat-label">{label}</span><span className="stat-value">{value}</span></div>); }
 
-/* ===========================
-   Dashboard
-=========================== */
+/* ---------------- Dashboard ---------------- */
 function Dashboard({ briefing, requests, onNewRequest, onOpenRequest }) {
   const openReqs = useMemo(() => requests.filter((r) => r.status !== "Done").slice(0, 3), [requests]);
 
@@ -287,7 +279,7 @@ function Dashboard({ briefing, requests, onNewRequest, onOpenRequest }) {
                   <div className="bullet" />
                   <div>
                     <div style={{ fontWeight: 600 }}>{s.time}</div>
-                    <div style={{ fontSize: 14, color: "#333" }}>{s.item}</div>
+                    <div style={{ fontSize: 14 }}>{s.item}</div>
                   </div>
                 </li>
               ))}
@@ -298,7 +290,7 @@ function Dashboard({ briefing, requests, onNewRequest, onOpenRequest }) {
             <ul style={{ paddingLeft: 18, margin: 0, display: "grid", gap: 6 }}>
               {briefing.reminders.map((r, i) => (<li key={i} style={{ fontSize: 14 }}>{r}</li>))}
             </ul>
-            <div style={{ marginTop: 12, padding: 12, borderRadius: 12, background: "var(--ivory)", border: "1px solid var(--line)", fontSize: 14 }}>
+            <div className="callout">
               <div style={{ fontWeight: 600 }}>Travel</div>
               <div>{briefing.travel.upcoming}</div>
               <div className="mono-note" style={{ marginTop: 6 }}>Daily update sent via {briefing.comms}.</div>
@@ -314,7 +306,7 @@ function Dashboard({ briefing, requests, onNewRequest, onOpenRequest }) {
           <Stat label="Properties" value="2" />
           <Stat label="Staff" value="5" />
         </div>
-        <button className="btn btn-ghost" style={{ marginTop: 12 }} onClick={onNewRequest}>Create request</button>
+        <button className="btn btn-ghost ring" style={{ marginTop: 12 }} onClick={onNewRequest}>Create request</button>
       </Section>
 
       <Section title="Quick Actions">
@@ -358,14 +350,14 @@ function Dashboard({ briefing, requests, onNewRequest, onOpenRequest }) {
       <Section title="Notes">
         <textarea className="textarea" placeholder="Leave a note for your concierge" style={{ width: "100%", height: 160 }} />
         <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}>
-          <button className="btn btn-primary">Send</button>
+          <button className="btn btn-primary ring">Send</button>
         </div>
       </Section>
     </div>
   );
 }
 
-/* quick actions with icons */
+/* Quick actions with icons */
 function QuickAction({ label, icon: Icon, onClick }) {
   return (
     <button className="qa" onClick={onClick}>
@@ -389,9 +381,7 @@ function TagPriority({ value }) {
   return <span className={cls}>{value}</span>;
 }
 
-/* ===========================
-   Requests list
-=========================== */
+/* ---------------- Requests list ---------------- */
 function Requests({ items, onCreate, onUpdate, onDelete, onOpen }) {
   const [q, setQ] = useState(""); const [status, setStatus] = useState("All"); const [prio, setPrio] = useState("All");
   const filtered = useMemo(() => items
@@ -403,12 +393,12 @@ function Requests({ items, onCreate, onUpdate, onDelete, onOpen }) {
   return (
     <div className="container">
       <div className="section" style={{ marginBottom: 16 }}>
-        <div className="section-header"><h3>Requests</h3><div className="meta">{items.length} total</div></div>
+        <div className="section-header"><h3 className="h-with-rule">Requests</h3><div className="meta">{items.length} total</div></div>
         <div className="toolbar">
-          <input className="input" placeholder="Search…  (press /)" value={q} onChange={(e) => setQ(e.target.value)} />
+          <input className="input" placeholder="Search…" value={q} onChange={(e) => setQ(e.target.value)} />
           <select className="select" value={status} onChange={(e) => setStatus(e.target.value)}><option>All</option><option>Open</option><option>In Progress</option><option>Done</option></select>
           <select className="select" value={prio} onChange={(e) => setPrio(e.target.value)}><option>All</option><option>Low</option><option>Medium</option><option>High</option><option>Urgent</option></select>
-          <button className="btn btn-primary" onClick={() => onOpen("new")}>New Request</button>
+          <button className="btn btn-primary ring" onClick={() => onOpen("new")}>New Request</button>
         </div>
       </div>
 
@@ -444,9 +434,7 @@ function Requests({ items, onCreate, onUpdate, onDelete, onOpen }) {
   );
 }
 
-/* ===========================
-   Request Drawer with Timeline
-=========================== */
+/* ---------------- Request Drawer ---------------- */
 function RequestDrawer({ mode, request, onClose, onCreate, onUpdate }) {
   const [title, setTitle] = useState(request?.title || "");
   const [category, setCategory] = useState(request?.category || "General");
@@ -466,7 +454,7 @@ function RequestDrawer({ mode, request, onClose, onCreate, onUpdate }) {
     <div className="drawer-backdrop" onMouseDown={onClose}>
       <aside className="drawer" onMouseDown={(e) => e.stopPropagation()}>
         <header className="drawer-head">
-          <h3>{mode === "new" ? "New Request" : "Request Details"}</h3>
+          <h3 className="h-with-rule">{mode === "new" ? "New Request" : "Request Details"}</h3>
           <button className="btn btn-ghost" onClick={onClose}>Close</button>
         </header>
 
@@ -512,12 +500,12 @@ function RequestDrawer({ mode, request, onClose, onCreate, onUpdate }) {
           {mode === "new" ? (
             <>
               <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
-              <button className="btn btn-primary" onClick={() => onCreate({ title, category, priority, assignee, dueDate, notes })} disabled={!title.trim()}>Create</button>
+              <button className="btn btn-primary ring" onClick={() => onCreate({ title, category, priority, assignee, dueDate, notes })} disabled={!title.trim()}>Create</button>
             </>
           ) : (
             <>
               <button className="btn btn-ghost" onClick={onClose}>Close</button>
-              <button className="btn btn-primary" onClick={() => onUpdate({ title, category, priority, assignee, dueDate, notes })} disabled={!title.trim()}>Save</button>
+              <button className="btn btn-primary ring" onClick={() => onUpdate({ title, category, priority, assignee, dueDate, notes })} disabled={!title.trim()}>Save</button>
             </>
           )}
         </footer>
@@ -526,9 +514,7 @@ function RequestDrawer({ mode, request, onClose, onCreate, onUpdate }) {
   );
 }
 
-/* ===========================
-   Concierge Chat Drawer
-=========================== */
+/* ---------------- Chat ---------------- */
 function ChatDrawer({ messages, onSend, onClose }) {
   const [text, setText] = useState("");
   return (
@@ -550,16 +536,14 @@ function ChatDrawer({ messages, onSend, onClose }) {
 
         <div className="sheet-foot">
           <input className="input" placeholder="Type a message…" value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && text.trim()) { onSend(text.trim()); setText(""); } }} />
-          <button className="btn btn-primary" onClick={() => { if (text.trim()) { onSend(text.trim()); setText(""); } }}>Send</button>
+          <button className="btn btn-primary ring" onClick={() => { if (text.trim()) { onSend(text.trim()); setText(""); } }}>Send</button>
         </div>
       </div>
     </div>
   );
 }
 
-/* ===========================
-   Toasts
-=========================== */
+/* ---------------- Toasts ---------------- */
 function ToastHost({ items }) {
   return (
     <div className="toast-host">
@@ -572,16 +556,17 @@ function ToastHost({ items }) {
   );
 }
 
-/* ===========================
-   Onboarding (persisted) & helpers
-=========================== */
+/* ---------------- Onboarding & helpers ---------------- */
 function OnboardingForm({ data, onChange, onComplete }) {
   const [step, setStep] = useState(1); const total = 8;
   function setSection(section, patch) { onChange({ ...data, [section]: { ...(data[section] || {}), ...patch } }); }
 
   return (
     <div className="container">
-      <header style={{ marginBottom: 16 }}><h2 style={{ margin: "0 0 4px 0" }}>Client Onboarding</h2><div className="mono-note">Step {step} of {total}</div></header>
+      <header style={{ marginBottom: 16 }}>
+        <h2 className="h-with-rule" style={{ margin: "0 0 4px 0" }}>Client Onboarding</h2>
+        <div className="mono-note">Step {step} of {total}</div>
+      </header>
 
       {step === 1 && (
         <Card title="1. Personal & Family Information">
@@ -712,7 +697,7 @@ function OnboardingForm({ data, onChange, onComplete }) {
             <span className="mono-note">Signature and date will be collected digitally.</span>
             <div style={{ display: "flex", gap: 10 }}>
               <button className="btn btn-ghost" onClick={() => setStep(7)}>Back</button>
-              <button className="btn btn-primary" onClick={onComplete}>Submit</button>
+              <button className="btn btn-primary ring" onClick={onComplete}>Submit</button>
             </div>
           </div>
         </Card>
@@ -720,16 +705,14 @@ function OnboardingForm({ data, onChange, onComplete }) {
     </div>
   );
 }
-function OnbNav({ onBack, onNext }) { return (<div className="form-nav">{onBack && <button className="btn btn-ghost" onClick={onBack}>Back</button>}{onNext && <button className="btn btn-primary" onClick={onNext}>Next</button>}</div>); }
-function Card({ title, children }) { return (<div className="card" style={{ marginBottom: 16 }}><h3 style={{ marginTop: 0 }}>{title}</h3>{children}</div>); }
+function OnbNav({ onBack, onNext }) { return (<div className="form-nav">{onBack && <button className="btn btn-ghost" onClick={onBack}>Back</button>}{onNext && <button className="btn btn-primary ring" onClick={onNext}>Next</button>}</div>); }
+function Card({ title, children }) { return (<div className="card" style={{ marginBottom: 16 }}><h3 className="h-with-rule" style={{ marginTop: 0 }}>{title}</h3>{children}</div>); }
 function Field({ label, children }) { return (<div className="field"><label>{label}</label>{children}</div>); }
 function Input(props) { return <input {...props} className="input" />; }
 function TextArea(props) { return <textarea {...props} className="textarea" />; }
 function Select(props) { return <select {...props} className="select" />; }
 
-/* ===========================
-   Coming Soon
-=========================== */
+/* ---------------- Coming Soon ---------------- */
 function ComingSoon({ label }) {
-  return (<div className="container centered"><div style={{ fontSize: 28, fontWeight: 600, marginBottom: 8 }}>{label}</div><p className="mono-note">This section will be implemented next. We will connect it to the secure backend and calendar integrations.</p></div>);
+  return (<div className="container centered"><div style={{ fontSize: 28, fontWeight: 600, marginBottom: 8 }}>{label}</div><p className="mono-note">This section will be implemented next.</p></div>);
 }
