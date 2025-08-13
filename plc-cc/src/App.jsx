@@ -37,8 +37,25 @@ export default function App() {
   const [route, setRoute] = useState("dashboard");
   const [onboarding, setOnboarding] = useLocalState("plc_onboarding_v1", {});
   const [requests, setRequests] = useLocalState("plc_requests_v1", SEED_REQUESTS);
-  const [showNewReq, setShowNewReq] = useState(false);
 
+  // Toasts
+  const [toasts, setToasts] = useState([]);
+  function notify(message, tone = "success") {
+    const id = uid();
+    setToasts(t => [...t, { id, message, tone }]);
+    setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 3500);
+  }
+
+  // Request Drawer & Chat Drawer
+  const [activeReqId, setActiveReqId] = useState(null);
+  const activeReq = requests.find(r => r.id === activeReqId) || null;
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chat, setChat] = useLocalState("plc_chat_v1", [
+    { id: uid(), who: "concierge", text: "Good morning—your gym car is booked for 07:40.", at: Date.now()-7200_000 },
+    { id: uid(), who: "me", text: "Perfect. Please add a table for 4 on Saturday 20:00 somewhere quiet.", at: Date.now()-7100_000 },
+  ]);
+
+  // Derived briefing
   const briefing = useMemo(() => {
     const name = onboarding.personal?.preferredName || onboarding.personal?.fullName || "Client";
     const comms = onboarding.comms?.dailyUpdate || "WhatsApp";
@@ -57,14 +74,36 @@ export default function App() {
     };
   }, [onboarding]);
 
-  // Request CRUD
-  function createRequest(payload) { setRequests([{ id: uid(), createdAt: Date.now(), status: "Open", ...payload }, ...requests]); }
-  function updateRequest(id, patch) { setRequests((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r))); }
-  function deleteRequest(id) { setRequests((prev) => prev.filter((r) => r.id !== id)); }
+  // Requests CRUD
+  function createRequest(payload) {
+    const rec = { id: uid(), createdAt: Date.now(), status: "Open", ...payload };
+    setRequests([rec, ...requests]);
+    notify("Request created");
+    setActiveReqId(rec.id);
+  }
+  function updateRequest(id, patch) {
+    setRequests(prev => prev.map(r => (r.id === id ? { ...r, ...patch } : r)));
+  }
+  function deleteRequest(id) {
+    setRequests(prev => prev.filter(r => r.id !== id));
+    notify("Request deleted", "info");
+    if (activeReqId === id) setActiveReqId(null);
+  }
+
+  // Keyboard shortcuts: "n" = new request, "/" = search on Requests page, "c" = chat
+  useEffect(() => {
+    function onKey(e) {
+      if (e.key === "n") { setRoute("requests"); setActiveReqId("new"); e.preventDefault(); }
+      if (e.key === "/") { setRoute("requests"); setActiveReqId(null); e.preventDefault(); }
+      if (e.key.toLowerCase() === "c") { setChatOpen(true); }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [activeReqId]);
 
   return (
     <div className="app">
-      <TopBar onNewRequest={() => { setRoute("requests"); setShowNewReq(true); }} />
+      <TopBar onNewRequest={() => { setRoute("requests"); setActiveReqId("new"); }} />
       <div className="shell">
         <SideBar route={route} onNavigate={setRoute} />
         <main className="main">
@@ -76,19 +115,20 @@ export default function App() {
                   openCount={requests.filter(r => r.status !== "Done").length}
                   nextTrip="LON → NCE · Fri 16:10"
                   comms={briefing.comms}
-                  onNewRequest={() => { setRoute("requests"); setShowNewReq(true); }}
+                  onNewRequest={() => { setRoute("requests"); setActiveReqId("new"); }}
                 />
               </div>
               <Dashboard
                 briefing={briefing}
                 requests={requests}
-                onNewRequest={() => { setRoute("requests"); setShowNewReq(true); }}
+                onNewRequest={() => { setRoute("requests"); setActiveReqId("new"); }}
+                onOpenRequest={id => { setRoute("requests"); setActiveReqId(id); }}
               />
             </>
           )}
 
           {route === "onboarding" && (
-            <OnboardingForm data={onboarding} onChange={setOnboarding} onComplete={() => setRoute("dashboard")} />
+            <OnboardingForm data={onboarding} onChange={setOnboarding} onComplete={() => { setRoute("dashboard"); notify("Onboarding saved"); }} />
           )}
 
           {route === "requests" && (
@@ -97,8 +137,7 @@ export default function App() {
               onCreate={createRequest}
               onUpdate={updateRequest}
               onDelete={deleteRequest}
-              showNew={showNewReq}
-              onCloseNew={() => setShowNewReq(false)}
+              onOpen={id => setActiveReqId(id)}
             />
           )}
 
@@ -107,6 +146,34 @@ export default function App() {
           )}
         </main>
       </div>
+
+      {/* Floating Chat button */}
+      <button className="fab" title="Concierge Chat (c)" onClick={() => setChatOpen(true)}>
+        <svg viewBox="0 0 24 24" className="icon-18"><path d="M21 12a8 8 0 11-3.1-6.3L22 4l-1.8 3.9A8 8 0 0121 12z" fill="currentColor" opacity=".15"/><path d="M12 20c4.4 0 8-3.1 8-7s-3.6-7-8-7-8 3.1-8 7c0 1.5.5 2.9 1.4 4.1L4 22l5.3-2.3c.8.2 1.7.3 2.7.3z" stroke="currentColor" strokeWidth="1.3" fill="none"/></svg>
+      </button>
+
+      {/* Drawers & Toasts */}
+      {activeReqId && (
+        <RequestDrawer
+          mode={activeReqId === "new" ? "new" : "view"}
+          request={activeReq}
+          onClose={() => setActiveReqId(null)}
+          onCreate={(payload) => createRequest(payload)}
+          onUpdate={patch => activeReq && updateRequest(activeReq.id, patch)}
+        />
+      )}
+      {chatOpen && (
+        <ChatDrawer
+          messages={chat}
+          onSend={(text) => {
+            const m = { id: uid(), who: "me", text, at: Date.now() };
+            setChat([...chat, m]);
+            setTimeout(() => setChat(c => [...c, { id: uid(), who: "concierge", text: "Noted. I’ll confirm shortly.", at: Date.now() }]), 700);
+          }}
+          onClose={() => setChatOpen(false)}
+        />
+      )}
+      <ToastHost items={toasts} />
     </div>
   );
 }
@@ -156,7 +223,7 @@ function SideBar({ route, onNavigate }) {
 }
 
 /* ===========================
-   Summary strip (new)
+   Summary strip
 =========================== */
 function SummaryStrip({ name, openCount, nextTrip, comms, onNewRequest }) {
   return (
@@ -204,7 +271,7 @@ function Stat({ label, value }) { return (<div className="stat"><span className=
 /* ===========================
    Dashboard
 =========================== */
-function Dashboard({ briefing, requests, onNewRequest }) {
+function Dashboard({ briefing, requests, onNewRequest, onOpenRequest }) {
   const openReqs = useMemo(() => requests.filter((r) => r.status !== "Done").slice(0, 3), [requests]);
 
   return (
@@ -275,7 +342,7 @@ function Dashboard({ briefing, requests, onNewRequest }) {
             <thead><tr><th>Title</th><th>Status</th><th>Priority</th><th>Due</th><th>Assignee</th></tr></thead>
             <tbody>
               {openReqs.map((r) => (
-                <tr key={r.id}>
+                <tr key={r.id} className="row-click" onClick={() => onOpenRequest(r.id)}>
                   <td><div className="row-title">{r.title}</div><div className="row-sub">{r.notes}</div></td>
                   <td><TagStatus value={r.status} /></td>
                   <td><TagPriority value={r.priority} /></td>
@@ -322,8 +389,10 @@ function TagPriority({ value }) {
   return <span className={cls}>{value}</span>;
 }
 
-/* ========== Requests (unchanged UI aside from theme) ========== */
-function Requests({ items, onCreate, onUpdate, onDelete, showNew, onCloseNew }) {
+/* ===========================
+   Requests list
+=========================== */
+function Requests({ items, onCreate, onUpdate, onDelete, onOpen }) {
   const [q, setQ] = useState(""); const [status, setStatus] = useState("All"); const [prio, setPrio] = useState("All");
   const filtered = useMemo(() => items
     .filter(r => (status === "All" ? true : r.status === status))
@@ -336,10 +405,10 @@ function Requests({ items, onCreate, onUpdate, onDelete, showNew, onCloseNew }) 
       <div className="section" style={{ marginBottom: 16 }}>
         <div className="section-header"><h3>Requests</h3><div className="meta">{items.length} total</div></div>
         <div className="toolbar">
-          <input className="input" placeholder="Search…" value={q} onChange={(e) => setQ(e.target.value)} />
+          <input className="input" placeholder="Search…  (press /)" value={q} onChange={(e) => setQ(e.target.value)} />
           <select className="select" value={status} onChange={(e) => setStatus(e.target.value)}><option>All</option><option>Open</option><option>In Progress</option><option>Done</option></select>
           <select className="select" value={prio} onChange={(e) => setPrio(e.target.value)}><option>All</option><option>Low</option><option>Medium</option><option>High</option><option>Urgent</option></select>
-          <button className="btn btn-primary" onClick={() => onCloseNew?.(true)}>New Request</button>
+          <button className="btn btn-primary" onClick={() => onOpen("new")}>New Request</button>
         </div>
       </div>
 
@@ -351,7 +420,7 @@ function Requests({ items, onCreate, onUpdate, onDelete, showNew, onCloseNew }) 
           <table className="table">
             <tbody>
               {filtered.map((r) => (
-                <tr key={r.id}>
+                <tr key={r.id} className="row-click" onClick={() => onOpen(r.id)}>
                   <td style={{ width: "34%" }}><div className="row-title">{r.title}</div><div className="row-sub">{r.notes}</div></td>
                   <td><TagStatus value={r.status} /></td>
                   <td><TagPriority value={r.priority} /></td>
@@ -359,9 +428,9 @@ function Requests({ items, onCreate, onUpdate, onDelete, showNew, onCloseNew }) 
                   <td>{r.assignee || "—"}</td>
                   <td>
                     <div className="row-actions">
-                      {r.status !== "Done" && <button className="btn btn-ghost" onClick={() => onUpdate(r.id, { status: "Done" })}>Mark done</button>}
-                      {r.status === "Open" && <button className="btn btn-ghost" onClick={() => onUpdate(r.id, { status: "In Progress" })}>Start</button>}
-                      <button className="btn btn-ghost" onClick={() => onDelete(r.id)}>Delete</button>
+                      {r.status !== "Done" && <button className="btn btn-ghost" onClick={(e) => { e.stopPropagation(); onUpdate(r.id, { status: "Done" }); }}>Mark done</button>}
+                      {r.status === "Open" && <button className="btn btn-ghost" onClick={(e) => { e.stopPropagation(); onUpdate(r.id, { status: "In Progress" }); }}>Start</button>}
+                      <button className="btn btn-ghost" onClick={(e) => { e.stopPropagation(); onDelete(r.id); }}>Delete</button>
                     </div>
                   </td>
                 </tr>
@@ -371,35 +440,140 @@ function Requests({ items, onCreate, onUpdate, onDelete, showNew, onCloseNew }) 
           </table>
         </div>
       </div>
-
-      {showNew && <NewRequestModal onClose={() => onCloseNew(false)} onSubmit={(payload) => { onCreate(payload); onCloseNew(false); }} />}
     </div>
   );
 }
 
-function NewRequestModal({ onClose, onSubmit }) {
-  const [title, setTitle] = useState(""); const [category, setCategory] = useState("General"); const [priority, setPriority] = useState("Medium");
-  const [assignee, setAssignee] = useState(""); const [dueDate, setDueDate] = useState(""); const [notes, setNotes] = useState("");
+/* ===========================
+   Request Drawer with Timeline
+=========================== */
+function RequestDrawer({ mode, request, onClose, onCreate, onUpdate }) {
+  const [title, setTitle] = useState(request?.title || "");
+  const [category, setCategory] = useState(request?.category || "General");
+  const [priority, setPriority] = useState(request?.priority || "Medium");
+  const [assignee, setAssignee] = useState(request?.assignee || "");
+  const [dueDate, setDueDate] = useState(request?.dueDate || "");
+  const [notes, setNotes] = useState(request?.notes || "");
+
+  const timeline = (request && [
+    { t: request.createdAt, label: "Created" },
+    request.status === "In Progress" ? { t: request.createdAt + 5_000, label: "Work started" } : null,
+    request.dueDate ? { t: new Date(request.dueDate).getTime(), label: "Due" } : null,
+    request.status === "Done" ? { t: Date.now(), label: "Completed" } : null,
+  ].filter(Boolean)) || [];
+
   return (
-    <div className="modal-backdrop" onMouseDown={onClose}>
-      <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
-        <h3 style={{ marginTop: 0 }}>New Request</h3>
-        <div className="form-grid">
-          <div className="field"><label>Title</label><input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="What do you need?" /></div>
-          <div className="field"><label>Category</label><select className="select" value={category} onChange={(e) => setCategory(e.target.value)}><option>General</option><option>Home</option><option>Travel</option><option>Dining</option><option>Gifting</option></select></div>
-          <div className="field"><label>Priority</label><select className="select" value={priority} onChange={(e) => setPriority(e.target.value)}><option>Low</option><option>Medium</option><option>High</option><option>Urgent</option></select></div>
-          <div className="field"><label>Assignee</label><input className="input" value={assignee} onChange={(e) => setAssignee(e.target.value)} placeholder="Who handles it" /></div>
-          <div className="field"><label>Due date</label><input type="date" className="input" value={dueDate} onChange={(e) => setDueDate(e.target.value)} /></div>
-          <div className="field" style={{ gridColumn: "1 / -1" }}><label>Notes</label><textarea className="textarea" rows={4} value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
+    <div className="drawer-backdrop" onMouseDown={onClose}>
+      <aside className="drawer" onMouseDown={(e) => e.stopPropagation()}>
+        <header className="drawer-head">
+          <h3>{mode === "new" ? "New Request" : "Request Details"}</h3>
+          <button className="btn btn-ghost" onClick={onClose}>Close</button>
+        </header>
+
+        <div className="drawer-body">
+          <div className="form-grid">
+            <div className="field"><label>Title</label><input className="input" value={title} onChange={(e) => setTitle(e.target.value)} /></div>
+            <div className="field"><label>Category</label><select className="select" value={category} onChange={(e) => setCategory(e.target.value)}>
+              <option>General</option><option>Home</option><option>Travel</option><option>Dining</option><option>Gifting</option>
+            </select></div>
+            <div className="field"><label>Priority</label><select className="select" value={priority} onChange={(e) => setPriority(e.target.value)}>
+              <option>Low</option><option>Medium</option><option>High</option><option>Urgent</option>
+            </select></div>
+            <div className="field"><label>Assignee</label><input className="input" value={assignee} onChange={(e) => setAssignee(e.target.value)} /></div>
+            <div className="field"><label>Due date</label><input type="date" className="input" value={dueDate} onChange={(e) => setDueDate(e.target.value)} /></div>
+            <div className="field" style={{ gridColumn: "1 / -1" }}><label>Notes</label><textarea className="textarea" rows={4} value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
+          </div>
+
+          {mode === "view" && (
+            <>
+              <div className="divider"></div>
+              <div className="timeline">
+                {timeline.map((it, i) => (
+                  <div className="tl-row" key={i}>
+                    <div className="tl-dot" />
+                    <div className="tl-body">
+                      <div className="tl-label">{it.label}</div>
+                      <div className="tl-time">{new Date(it.t).toLocaleString()}</div>
+                    </div>
+                  </div>
+                ))}
+                {timeline.length === 0 && <div className="mono-note">No activity yet.</div>}
+              </div>
+
+              <div className="drawer-actions">
+                {request?.status !== "Done" && <button className="btn btn-ghost" onClick={() => onUpdate({ status: "Done" })}>Mark done</button>}
+                {request?.status === "Open" && <button className="btn btn-ghost" onClick={() => onUpdate({ status: "In Progress" })}>Start</button>}
+              </div>
+            </>
+          )}
         </div>
-        <div className="form-nav"><button className="btn btn-ghost" onClick={onClose}>Cancel</button><button className="btn btn-primary" onClick={() => onSubmit({ title, category, priority, assignee, dueDate, notes })} disabled={!title.trim()}>Create</button></div>
+
+        <footer className="drawer-foot">
+          {mode === "new" ? (
+            <>
+              <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
+              <button className="btn btn-primary" onClick={() => onCreate({ title, category, priority, assignee, dueDate, notes })} disabled={!title.trim()}>Create</button>
+            </>
+          ) : (
+            <>
+              <button className="btn btn-ghost" onClick={onClose}>Close</button>
+              <button className="btn btn-primary" onClick={() => onUpdate({ title, category, priority, assignee, dueDate, notes })} disabled={!title.trim()}>Save</button>
+            </>
+          )}
+        </footer>
+      </aside>
+    </div>
+  );
+}
+
+/* ===========================
+   Concierge Chat Drawer
+=========================== */
+function ChatDrawer({ messages, onSend, onClose }) {
+  const [text, setText] = useState("");
+  return (
+    <div className="sheet-backdrop" onMouseDown={onClose}>
+      <div className="sheet" onMouseDown={(e) => e.stopPropagation()}>
+        <header className="sheet-head">
+          <div className="brand-subtle">Concierge</div>
+          <button className="btn btn-ghost" onClick={onClose}>Close</button>
+        </header>
+
+        <div className="chat">
+          {messages.map(m => (
+            <div key={m.id} className={`bubble ${m.who === "me" ? "me" : "them"}`}>
+              <div className="bubble-text">{m.text}</div>
+              <div className="bubble-time">{new Date(m.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="sheet-foot">
+          <input className="input" placeholder="Type a message…" value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && text.trim()) { onSend(text.trim()); setText(""); } }} />
+          <button className="btn btn-primary" onClick={() => { if (text.trim()) { onSend(text.trim()); setText(""); } }}>Send</button>
+        </div>
       </div>
     </div>
   );
 }
 
 /* ===========================
-   Onboarding (persisted)
+   Toasts
+=========================== */
+function ToastHost({ items }) {
+  return (
+    <div className="toast-host">
+      {items.map(t => (
+        <div key={t.id} className={`toast ${t.tone === "info" ? "toast--info" : "toast--ok"}`}>
+          {t.tone === "info" ? "•" : "✓"} <span>{t.message}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ===========================
+   Onboarding (persisted) & helpers
 =========================== */
 function OnboardingForm({ data, onChange, onComplete }) {
   const [step, setStep] = useState(1); const total = 8;

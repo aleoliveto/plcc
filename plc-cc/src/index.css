@@ -221,3 +221,47 @@ h1{font-size:32px} h2{font-size:26px} h3{font-size:18px}
 }
 .qa:hover{box-shadow:0 8px 20px rgba(0,0,0,.08); transform:translateY(-1px)}
 .icon-16{width:16px; height:16px}
+/* ===== Summary / KPI / QA (already added previously) ... keep existing ===== */
+
+/* ===== Row click affordance ===== */
+.row-click { cursor: pointer; }
+.row-click:hover { background: rgba(0,0,0,.03); }
+
+/* ===== Drawer (right-side) ===== */
+.drawer-backdrop{position:fixed; inset:0; background:rgba(0,0,0,.18); display:grid; justify-items:end; align-items:stretch; padding:0}
+.drawer{width:min(520px,100%); height:100%; background:linear-gradient(180deg,#fff,#FBF9F5); border-left:1px solid var(--line); box-shadow:var(--elev-2); display:flex; flex-direction:column; animation:slideIn .18s ease}
+@keyframes slideIn{from{transform:translateX(8px); opacity:.0} to{transform:translateX(0); opacity:1}}
+.drawer-head,.drawer-foot{padding:16px 18px; border-bottom:1px solid var(--line); background:rgba(255,255,255,.6); backdrop-filter:blur(4px)}
+.drawer-foot{border-top:1px solid var(--line); border-bottom:none; margin-top:auto; display:flex; gap:10px; justify-content:flex-end}
+.drawer-body{padding:18px}
+.divider{height:1px; background:var(--line); margin:14px 0}
+
+/* Timeline */
+.timeline{display:grid; gap:10px}
+.tl-row{display:grid; grid-template-columns: 18px 1fr; gap:12px; align-items:start}
+.tl-dot{width:10px; height:10px; border-radius:999px; background:linear-gradient(180deg,var(--accent),var(--accent-2))}
+.tl-label{font-weight:600; color:var(--ink)}
+.tl-time{font-size:12px; color:var(--ink-3)}
+
+/* ===== Bottom Sheet (chat) ===== */
+.sheet-backdrop{position:fixed; inset:0; background:rgba(0,0,0,.18); display:grid; align-items:end}
+.sheet{width:100%; max-height:80vh; background:linear-gradient(180deg,#fff,#FBF9F5); border-top:1px solid var(--line); border-radius:18px 18px 0 0; box-shadow:var(--elev-2); animation:sheetIn .2s ease; display:flex; flex-direction:column}
+@keyframes sheetIn{from{transform:translateY(12px); opacity:.0} to{transform:translateY(0); opacity:1}}
+.sheet-head{display:flex; justify-content:space-between; align-items:center; padding:14px 16px; border-bottom:1px solid var(--line)}
+.sheet-foot{display:flex; gap:10px; padding:12px 16px; border-top:1px solid var(--line); background:#fff}
+.chat{padding:16px; display:grid; gap:10px; overflow:auto}
+.bubble{max-width:70%; border:1px solid var(--line); border-radius:14px; padding:10px 12px; background:#fff; box-shadow:0 6px 16px rgba(0,0,0,.06)}
+.bubble.me{margin-left:auto; background:#111; color:#fff; border-color:#111}
+.bubble .bubble-time{font-size:11px; opacity:.66; margin-top:4px}
+
+/* ===== Toasts ===== */
+.toast-host{position:fixed; right:16px; bottom:16px; display:grid; gap:8px; z-index:50}
+.toast{display:flex; align-items:center; gap:8px; padding:10px 12px; border-radius:12px; border:1px solid var(--line); box-shadow:var(--elev-1); background:#fff; animation:popIn .16s ease}
+.toast--ok{border-color:#cfe8d6; background:#edf9f0}
+.toast--info{border-color:#cfd7e8; background:#eef2ff}
+@keyframes popIn{from{transform:translateY(6px); opacity:0} to{transform:translateY(0); opacity:1}}
+
+/* ===== Floating Action Button ===== */
+.fab{position:fixed; right:18px; bottom:18px; width:52px; height:52px; border-radius:999px; border:1px solid var(--line); background:#111; color:#fff; box-shadow:0 12px 30px rgba(0,0,0,.22); display:grid; place-items:center; cursor:pointer; transition:.18s}
+.fab:hover{transform:translateY(-2px)}
+.icon-18{width:18px; height:18px}
