@@ -283,3 +283,9 @@ body[data-theme="noir"] .bubble.me{ background:#fff; color:#111; border-color:#f
 @media (prefers-reduced-motion: reduce){
   *,*::before,*::after{transition:none !important; animation:none !important}
 }
+/* --- Calendar specifics --- */
+.calendar-block{padding:10px; border-radius:12px; background:linear-gradient(180deg,#fff,#FCFAF6); border:1px solid var(--line); margin-bottom:8px}
+body[data-theme="noir"] .calendar-block{ background:linear-gradient(180deg,#1a1a19,#141414); }
+
+/* Make table headings stick for long lists */
+.table thead th { position: sticky; top: 0; z-index: 1; }
