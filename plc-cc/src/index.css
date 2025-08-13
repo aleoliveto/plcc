@@ -289,3 +289,45 @@ body[data-theme="noir"] .calendar-block{ background:linear-gradient(180deg,#1a1a
 
 /* Make table headings stick for long lists */
 .table thead th { position: sticky; top: 0; z-index: 1; }
+/* ===== Executive strip ===== */
+.strip{display:grid; grid-template-columns: 1fr 2.2fr 1fr auto; gap:14px; align-items:center; margin-bottom:18px}
+.strip-item{display:flex; align-items:center; gap:10px; padding:12px 14px; border:1px solid var(--line); border-radius:14px; background:var(--surface)}
+.strip-cta{display:flex; justify-content:flex-end}
+.badge{display:inline-grid; place-items:center; min-width:28px; height:28px; border-radius:999px; padding:0 8px; border:1px solid var(--line); font-weight:600; background:var(--surface)}
+.badge--alert{background:#fff1f1; border-color:#ffd6d6}
+.strip-label{font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3)}
+.strip-main{display:grid; gap:4px}
+.strip-title{font-weight:600; color:var(--ink)}
+.strip-sub{display:flex; align-items:center; gap:8px; color:var(--ink-3)}
+.pill{border:1px solid var(--line); padding:2px 8px; border-radius:999px; font-size:12px; background:#edf9f0}
+.pill--late{background:#fff1f1}
+.dot{width:8px; height:8px; border-radius:999px; background:var(--ink)}
+.dot--next{background:linear-gradient(180deg,var(--accent),var(--accent-2))}
+
+/* ===== Decisions ===== */
+.list{display:grid; gap:12px}
+.dec-card{border:1px solid var(--line); border-radius:14px; padding:12px; background:linear-gradient(180deg,var(--surface), color-mix(in srgb, var(--surface) 92%, var(--paper) 8%)); box-shadow:var(--elev-1)}
+.dec-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:6px}
+.dec-title{font-weight:600; color:var(--ink)}
+.dec-sub{font-size:13px; color:var(--ink-3)}
+
+/* ===== Logistics & alerts ===== */
+.log-row{padding:8px 0; border-bottom:1px solid var(--line)}
+.log-row:last-child{border-bottom:none}
+.log-title{font-weight:600; color:var(--ink)}
+.alert{display:grid; grid-template-columns: 14px 1fr auto; gap:10px; align-items:flex-start; padding:10px 12px; border-radius:12px; border:1px solid var(--line); background:var(--surface)}
+.alert-dot{width:10px; height:10px; border-radius:999px; margin-top:4px; background:#ffd54a}
+.alert--high .alert-dot{background:#ff4a4a}
+.alert--med .alert-dot{background:#ffd54a}
+.alert--low .alert-dot{background:#a0e19f}
+
+/* ===== Calendar minor ===== */
+.calendar-week{display:grid; grid-template-columns: repeat(7, 1fr); gap:12px}
+.calendar-day{border:1px solid var(--line); border-radius:14px; padding:10px; background:var(--surface)}
+
+/* ===== Modal (reused) ===== */
+.modal-backdrop{position:fixed; inset:0; background:rgba(0,0,0,.18); display:grid; place-items:center; z-index:100}
+.modal{width:min(720px,calc(100vw - 28px)); background:linear-gradient(180deg,var(--surface), color-mix(in srgb, var(--surface) 90%, var(--paper) 10%)); border:1px solid var(--line); border-radius:18px; box-shadow:var(--elev-2); padding:18px}
+
+/* Optional: negative variance color */
+.stat-value.neg{color:#b00020}
