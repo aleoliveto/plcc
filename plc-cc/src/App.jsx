@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useScreen } from "./hooks/useScreen";
 import MobileHome from "./mobile/MobileHome";
 import TabletHome from "./tablet/TabletHome";
-import { useScreen } from "./hooks/useScreen";
 import MobileTabs from "./mobile/MobileTabs";
 import MobileChat from "./mobile/MobileChat";
 import MobileProfile from "./mobile/MobileProfile";
