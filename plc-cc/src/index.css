@@ -331,3 +331,95 @@ body[data-theme="noir"] .calendar-block{ background:linear-gradient(180deg,#1a1a
 
 /* Optional: negative variance color */
 .stat-value.neg{color:#b00020}
+/* ---- iPhone shell ---- */
+@media (max-width:480px){
+  .topbar, .sidebar { display:none; }
+  .main { padding-top: 0; }
+  body { background: var(--paper); }
+}
+
+.mobile-shell{ padding-bottom: 74px; }
+.mobile-header{
+  color:#fff;
+  padding: 22px 18px 16px;
+  border-bottom-left-radius: 22px;
+  border-bottom-right-radius: 22px;
+  background:
+    radial-gradient(120% 120% at 0% 0%, rgba(255,255,255,.12) 0%, rgba(255,255,255,0) 60%),
+    linear-gradient(180deg, #1a1a1a 0%, #0f0f0f 100%);
+  box-shadow: 0 10px 30px rgba(0,0,0,.25);
+}
+.mh-greeting{ font-size: 18px; font-weight: 700; letter-spacing:.01em; }
+.mh-sub{ margin-top:6px; display:flex; gap:8px; align-items:center; opacity:.9; }
+.mh-status{ margin-top:10px; display:flex; align-items:center; gap:6px; opacity:.9; }
+
+.mobile-actions{ padding: 14px; display:grid; gap:10px; }
+.action{
+  display:flex; align-items:center; gap:12px;
+  padding:14px 16px; width:100%;
+  border-radius:16px; border:1px solid var(--line);
+  background: var(--surface);
+  box-shadow: var(--elev-1);
+  font-weight:600;
+}
+.action .a-arrow{ margin-left:auto; opacity:.45; font-size:20px; line-height:1; }
+.action .a-emoji{ font-size:18px; }
+.action--lg{ align-items:flex-start; flex-direction:column; gap:4px; }
+.action--lg .a-arrow{ position:absolute; right:14px; top:50%; transform:translateY(-50%); }
+.action--lg{ position:relative; }
+.action--lg .a-label{ font-size:16px; }
+.action--lg .a-sub{ font-size:13px; color:var(--ink-3); }
+
+.mobile-chatbar{
+  position: fixed; left:0; right:0; bottom:0;
+  display:flex; gap:8px; padding:10px 12px;
+  background: var(--paper); border-top:1px solid var(--line);
+}
+.chat-input{
+  flex:1; border-radius:999px; padding:12px 14px;
+  border:1px solid var(--line); background: var(--surface);
+}
+.chat-send{ border-radius:999px; padding:0 16px; }
+
+/* Reuse pills/badges from desktop theme */
+.badge{display:inline-grid; place-items:center; min-width:28px; height:28px; border-radius:999px; padding:0 8px; border:1px solid var(--line); font-weight:600; background:var(--surface)}
+.badge--alert{background:#fff1f1; border-color:#ffd6d6}
+.pill{border:1px solid var(--line); padding:2px 8px; border-radius:999px; font-size:12px; background:#edf9f0}
+.pill--late{background:#fff1f1}
+
+/* ---- iPad layout ---- */
+@media (min-width:481px) and (max-width:1024px){
+  .sidebar { width: 220px; }
+  .grid-3 { grid-template-columns: 1fr 1fr; } /* If you still use it elsewhere */
+  .tablet-grid{ display:grid; grid-template-columns: 1.25fr .75fr; gap:16px; }
+  .tablet-actions{ display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
+}
+
+/* Small fix for calendar cards already in your theme */
+.calendar-block{padding:10px; border-radius:12px; background:linear-gradient(180deg,#fff,#FCFAF6); border:1px solid var(--line); margin-bottom:8px}
+body[data-theme="noir"] .calendar-block{ background:linear-gradient(180deg,#1a1a19,#141414); }
+
+/* --- Bottom tab bar (iPhone) --- */
+@media (max-width:480px){
+  .tabbar{ position:fixed; left:0; right:0; bottom:0; height:56px;
+    background:var(--surface); border-top:1px solid var(--line);
+    display:flex; justify-content:space-around; align-items:center; z-index:50; }
+  .tabbar button{ background:none; border:none; display:grid; place-items:center; gap:4px;
+    font-size:12px; color:var(--ink-3); }
+  .tabbar button .icon{ font-size:18px; line-height:1; }
+  .tabbar button.active{ color:var(--ink); font-weight:600; }
+  .mobile-shell{ padding-bottom:72px; }
+}
+
+/* --- Mobile chat --- */
+@media (max-width:480px){
+  .chat-view{ display:flex; flex-direction:column; height:100vh; background:var(--paper); }
+  .chat-log{ flex:1; overflow:auto; padding:12px; }
+  .chat-msg{ max-width:78%; padding:10px 12px; border:1px solid var(--line); border-radius:14px; margin-bottom:8px; }
+  .chat-msg.me{ margin-left:auto; background:var(--surface); }
+  .chat-msg.them{ background:linear-gradient(180deg,#111,#0c0c0c); color:#fff; border-color:#000; }
+  .chat-composer{ position:sticky; bottom:0; background:var(--paper); border-top:1px solid var(--line);
+    display:flex; gap:8px; padding:10px 12px; }
+}
+
+/* (You already have the mobile header/action/button styles from earlier.) */

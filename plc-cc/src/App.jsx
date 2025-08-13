@@ -1,4 +1,13 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useScreen } from "./hooks/useScreen";
+import MobileHome from "./mobile/MobileHome";
+import TabletHome from "./tablet/TabletHome";
+import { useScreen } from "./hooks/useScreen";
+import MobileTabs from "./mobile/MobileTabs";
+import MobileChat from "./mobile/MobileChat";
+import MobileProfile from "./mobile/MobileProfile";
+
+
 
 /* ========= Shared helpers ========= */
 function uid(){ return Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4); }
@@ -38,6 +47,19 @@ export default function App(){
   useEffect(()=>{ document.body.dataset.theme = theme; },[theme]);
   const [privacy,setPrivacy] = useLocalState("plc_privacy","show"); // "show" | "hide"
   const hideSensitive = privacy === "hide";
+  const screen = useScreen();
+const [mobileTab, setMobileTab] = useLocalState("plc_mobile_tab","home");
+
+const [messages, setMessages] = useLocalState("plc_messages_v1", [
+  { id: uid(), thread: "concierge", from: "them", text: "Good morning — how may I assist?", at: Date.now()-3600_000 }
+]);
+const [lastThread, setLastThread] = useLocalState("plc_last_thread","concierge");
+
+function sendChat(text){
+  setMessages(m => [...m, { id: uid(), thread: lastThread, from: "me", text, at: Date.now() }]);
+  setMobileTab("chat");
+}
+const threadMsgs = useMemo(()=>messages.filter(m=>m.thread===lastThread).sort((a,b)=>a.at-b.at),[messages,lastThread]);
 
   /* Core pages & data */
   const [route,setRoute] = useState("dashboard");
@@ -177,29 +199,87 @@ export default function App(){
       <div className="shell">
         <SideBar route={route} onNavigate={setRoute} />
         <main className="main">
-          {route==="dashboard" && (
-            <ExecutiveDashboard
-              name={name}
-              hideSensitive={hideSensitive}
-              pendingDecisions={pendingDecisions}
-              unresolvedAlerts={unresolvedAlerts}
-              nextEvent={nextEvent}
-              leaveInMin={leaveInMin}
-              vehicles={vehicles}
-              properties={properties}
-              guests={guests}
-              inbox={inbox}
-              nextTripSeg={nextTripSeg}
-              money={money}
-              datesManual={datesManual}
-              assets={assets}
-              onApprove={(id)=>setDecisions(ds=>ds.map(d=>d.id===id?{...d,status:"Approved"}:d))}
-              onDecline={(id)=>setDecisions(ds=>ds.map(d=>d.id===id?{...d,status:"Declined"}:d))}
-              onDelegate={(id)=>notify("Delegated")}
-              onQuickMessage={()=>createRequest({ title:"Message concierge", category:"Comms", notes:"", assignee:"Concierge" })}
-              onCreateRequest={(title,notes)=>createRequest({title,category:"General",notes})}
-            />
-          )}
+          {route === "dashboard" && (
+  screen.isPhone ? (
+    <>
+      {mobileTab === "home" && (
+        <MobileHome
+          name={name}
+          nextEvent={nextEvent}
+          leaveInMin={leaveInMin}
+          pendingCount={pendingDecisions.length}
+          alertCount={unresolvedAlerts.length}
+          onShortcut={({title, notes, category}) => createRequest({ title, notes, category })}
+          onSendMessage={(text)=>sendChat(text)}
+        />
+      )}
+      {mobileTab === "requests" && (
+        <Requests
+          items={requests}
+          onCreate={(p)=>{ const rec={id:uid(),createdAt:Date.now(),status:"Open",...p}; setRequests([rec,...requests]); }}
+          onUpdate={(id,patch)=>setRequests(prev=>prev.map(r=>r.id===id?{...r,...patch}:r))}
+          onDelete={(id)=>setRequests(prev=>prev.filter(r=>r.id!==id))}
+          onOpen={(id)=>setActiveReqId(id)}
+        />
+      )}
+      {mobileTab === "profile" && (
+        <MobileProfile
+          name={name}
+          theme={theme}
+          privacy={privacy}
+          onToggleTheme={()=>setTheme(theme==="noir"?"ivory":"noir")}
+          onTogglePrivacy={()=>setPrivacy(privacy==="hide"?"show":"hide")}
+        />
+      )}
+      {mobileTab === "chat" && (
+        <MobileChat
+          name="Concierge"
+          messages={threadMsgs}
+          onSend={(t)=>sendChat(t)}
+          onBack={()=>setMobileTab("home")}
+        />
+      )}
+      <MobileTabs active={mobileTab} onChange={setMobileTab} />
+    </>
+  ) : screen.isTablet ? (
+    /* your TabletHome render (unchanged) */
+    <TabletHome
+      name={name}
+      nextEvent={nextEvent}
+      leaveInMin={leaveInMin}
+      pendingDecisions={pendingDecisions}
+      unresolvedAlerts={unresolvedAlerts}
+      nextTripSeg={nextTripSeg}
+      money={money}
+      onShortcut={({title, notes, category}) => createRequest({ title, notes, category })}
+    />
+  ) : (
+    /* your desktop ExecutiveDashboard render (unchanged) */
+    <ExecutiveDashboard
+      name={name}
+      hideSensitive={privacy==="hide"}
+      pendingDecisions={pendingDecisions}
+      unresolvedAlerts={unresolvedAlerts}
+      nextEvent={nextEvent}
+      leaveInMin={leaveInMin}
+      vehicles={vehicles}
+      properties={properties}
+      guests={guests}
+      inbox={inbox}
+      nextTripSeg={nextTripSeg}
+      money={money}
+      datesManual={datesManual}
+      assets={assets}
+      onApprove={(id)=>setDecisions(ds=>ds.map(d=>d.id===id?{...d,status:"Approved"}:d))}
+      onDecline={(id)=>setDecisions(ds=>ds.map(d=>d.id===id?{...d,status:"Declined"}:d))}
+      onDelegate={()=>{}}
+      onQuickMessage={()=>sendChat("Hi — can you assist?")}
+      onCreateRequest={(title,notes)=>createRequest({title,category:"General",notes})}
+    />
+  )
+)}
+
+
 
           {route==="calendar" && (<CalendarPage events={events} setEvents={setEvents} />)}
           {route==="properties" && (<PropertiesPage items={properties} setItems={setProperties} quickRequest={(title,notes)=>createRequest({ title, category:"Home", notes })} />)}
