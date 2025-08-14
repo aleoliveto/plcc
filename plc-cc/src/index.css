@@ -601,3 +601,71 @@ button { font: inherit; color: inherit; cursor: pointer; }
   .pill { background: #edf1ea; border: 1px solid var(--line); }
   .pill--late { background: #fff1f1; }
 }
+/* ===== iOS-style Widget Grid (mobile) ===== */
+@media (max-width: 480px) {
+  .w-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    padding: 10px;
+  }
+  .widget {
+    text-align: left;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    border-radius: 18px;
+    padding: 12px 14px;
+    box-shadow: var(--elev-1);
+    display: grid;
+    gap: 6px;
+  }
+  .widget:active { transform: translateY(1px); }
+  .widget--wide { grid-column: 1 / -1; }
+  .w-k { font-size: 12px; color: var(--ink-3); }
+  .w-v { font-size: 20px; font-weight: 700; line-height: 1.1; }
+  .w-v.warn { color: #B74A4A; }
+  .w-sub { font-size: 12px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* Floating Action Button */
+  .fab {
+    position: fixed;
+    right: 16px;
+    bottom: calc(16px + var(--safe-bottom));
+    width: 54px; height: 54px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: var(--btn);
+    color: var(--btn-ink);
+    box-shadow: var(--elev-2);
+    font-size: 28px; line-height: 1; display: grid; place-items: center;
+    z-index: 70; /* above tab bar (50) and chat bar (60) */
+  }
+
+  /* Bottom Sheet (Quick Actions) */
+  .sheet-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,.35);
+    z-index: 75; display: grid; align-items: end;
+  }
+  .sheet {
+    background: var(--surface); border-top-left-radius: 20px; border-top-right-radius: 20px;
+    border-top: 1px solid var(--line);
+    box-shadow: 0 -8px 30px rgba(0,0,0,.25);
+    padding: 8px 8px calc(8px + var(--safe-bottom));
+  }
+  .sheet-handle {
+    width: 42px; height: 4px; border-radius: 999px; background: var(--line);
+    margin: 8px auto 10px;
+  }
+  .sheet-title { text-align: center; font-weight: 700; margin-bottom: 6px; }
+  .sheet-list { display: grid; gap: 8px; padding: 4px; }
+  .sheet-item {
+    border: 1px solid var(--line); background: var(--surface); border-radius: 14px;
+    padding: 12px; display: flex; align-items: center; gap: 10px;
+  }
+  .sheet-item:active { transform: translateY(1px); }
+  .sheet-item-main { display: grid; gap: 2px; }
+  .sheet-item-title { font-weight: 600; }
+  .sheet-item-sub { font-size: 12px; color: var(--ink-3); }
+  .sheet-chevron { margin-left: auto; opacity: .45; font-size: 20px; }
+  .sheet-foot { display: flex; justify-content: center; padding-top: 8px; }
+}
