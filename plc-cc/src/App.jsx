@@ -16,7 +16,15 @@ function downloadFile(filename, text){
 function dateToYYYYMMDD(d){ return new Date(d).toISOString().slice(0,10); }
 function parseDT(dateStr, timeStr){ return new Date(`${dateStr}T${timeStr||"09:00"}:00`); }
 function minutesDiff(a,b){ return Math.round((a.getTime()-b.getTime())/60000); }
-function currency(n, hide){ if(hide) return "••••"; try { return new Intl.NumberFormat(undefined,{style:"currency",currency:"GBP"}).format(Number(n||0)); } catch { return `£${Number(n||0).toFixed(0)}`; } }
+function currency(n, hide, code){
+  if(hide) return "••••";
+  try {
+    const fallback = "GBP";
+    const cfg = JSON.parse(localStorage.getItem("plc_settings_v1")||"{}") || {};
+    const cur = code || cfg.currency || fallback;
+    return new Intl.NumberFormat(undefined,{style:"currency",currency:String(cur||fallback)}).format(Number(n||0));
+  } catch { return `£${Number(n||0).toFixed(0)}`; }
+}
 
 /* ========= Responsive hook (inline, premium-tuned breakpoints) ========= */
 function useScreen() {
@@ -47,6 +55,50 @@ export default function App(){
   useEffect(()=>{ document.body.dataset.theme = theme; },[theme]);
   const [privacy,setPrivacy] = useLocalState("plc_privacy","show"); // "show" | "hide"
   const hideSensitive = privacy === "hide";
+  // Ensure settings exists before any effects use it
+  const [settings,setSettings] = useLocalState("plc_settings_v1",{
+    travelBufferMin: 30,
+    currency: "GBP",
+    timeZone: (Intl.DateTimeFormat().resolvedOptions().timeZone)||"Europe/London",
+    autoLockMin: 2
+  });
+
+  /* Lock & PIN */
+  const [lockPin,setLockPin] = useLocalState("plc_lock_pin_v1","");
+  const pinSet = Boolean(lockPin && String(lockPin).length>=4);
+  const [locked,setLocked] = useState(false);
+  const [showPinModal,setShowPinModal] = useState(false);
+  const [showSettings,setShowSettings] = useState(false);
+
+  function lockNow(){ setLocked(true); setPrivacy("hide"); }
+  function unlockWith(pin){
+    if(!pinSet){ setLocked(false); return true; }
+    if(String(pin)===String(lockPin)){ setLocked(false); return true; }
+    return false;
+  }
+  function setNewPin(pin){ setLockPin(String(pin||"")); notify("PIN updated","info"); }
+
+  // Lock on load if a PIN is set
+  useEffect(()=>{ if(pinSet) setLocked(true); },[]);
+
+  // Auto-lock on inactivity (settings.autoLockMin minutes)
+  useEffect(()=>{
+    if(!pinSet) return;
+    let t;
+    const mins = Number(settings?.autoLockMin||2);
+    const reset=()=>{ if(t) clearTimeout(t); t=setTimeout(()=>lockNow(), Math.max(0.5, mins)*60*1000); };
+    const evts=["mousemove","keydown","touchstart"];
+    evts.forEach(e=>window.addEventListener(e, reset));
+    reset();
+    return ()=>{ evts.forEach(e=>window.removeEventListener(e, reset)); if(t) clearTimeout(t); };
+  },[pinSet, settings.autoLockMin]);
+
+  // Lock when the window/tab loses focus
+  useEffect(()=>{
+    const onBlur=()=>{ if(pinSet) lockNow(); };
+    window.addEventListener("blur", onBlur);
+    return ()=>window.removeEventListener("blur", onBlur);
+  },[pinSet]);
 
   /* Router */
   const [route,setRoute] = useState("dashboard");
@@ -101,7 +153,6 @@ export default function App(){
     { id: uid(), from:"Travel", summary:"NCE flight upgrade confirmed", lastUpdateAt: Date.now()-2*60*60*1000 },
     { id: uid(), from:"Home", summary:"Landscaping moved to 10:00 tomorrow", lastUpdateAt: Date.now()-20*60*1000 },
   ]);
-  const [settings,setSettings] = useLocalState("plc_settings_v1",{ travelBufferMin: 30 });
   const [money,setMoney] = useLocalState("plc_money_v1",{
     mtdDiscretionary: 12500, plan: 20000,
     nextPayments: [
@@ -139,6 +190,54 @@ export default function App(){
         notify("Data imported");
       }catch{ notify("Import failed","info"); }
     }; rdr.readAsText(file);
+  }
+
+  function exportBrief(){
+    const tz = settings?.timeZone;
+    const mtd = money?.mtdDiscretionary||0;
+    const plan = money?.plan||0;
+    const variance = plan ? Math.round(((mtd-plan)/plan)*100) : 0;
+    const payments = (money?.nextPayments||[]).slice(0,5);
+    const now = new Date();
+
+    const html = `<!doctype html><html><head><meta charset="utf-8"/><title>Executive Brief</title>
+      <style>
+        body{font-family:Segoe UI,Inter,system-ui,sans-serif;margin:24px;color:#111}
+        h1{font-size:20px;margin:0 0 8px}
+        .sub{color:#666;margin-bottom:18px}
+        .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+        .card{border:1px solid #ddd;border-radius:12px;padding:14px}
+        .h{font-weight:600;margin-bottom:8px}
+        .row{display:flex;justify-content:space-between;margin:4px 0}
+        .muted{color:#666}
+      </style></head><body>
+        <h1>Executive Brief</h1>
+        <div class="sub">Generated ${now.toLocaleString([], {timeZone: tz})}</div>
+        <div class="grid">
+          <div class="card"><div class="h">Next Event</div>
+            <div>${nextEvent ? `${nextEvent.date} ${nextEvent.time} — ${nextEvent.title}` : "No upcoming events"}</div>
+            <div class="muted">${nextEvent?.location||""}</div>
+          </div>
+          <div class="card"><div class="h">Decisions Pending</div>
+            ${(pendingDecisions||[]).slice(0,6).map(d=>`<div class="row"><span>${d.title}</span><span>${d.amount!=null?currency(d.amount, false):""}</span></div>`).join("")||"<div class=muted>None</div>"}
+          </div>
+          <div class="card"><div class="h">Alerts</div>
+            ${(unresolvedAlerts||[]).slice(0,6).map(a=>`<div class="row"><span>${a.message}</span><span class="muted">${new Date(a.at).toLocaleTimeString([], {hour:"2-digit", minute:"2-digit", timeZone: tz})}</span></div>`).join("")||"<div class=muted>All clear</div>"}
+          </div>
+          <div class="card"><div class="h">Travel</div>
+            ${nextTripSeg ? `<div>${nextTripSeg.date} ${nextTripSeg.time||""} — ${nextTripSeg.detail}</div>` : "<div class=muted>No upcoming segments</div>"}
+          </div>
+          <div class="card"><div class="h">Money</div>
+            <div class="row"><span>MTD discretionary</span><span>${currency(mtd,false)}</span></div>
+            <div class="row"><span>Vs plan</span><span>${variance?`${variance>0?"+":""}${variance}%`:"—"}</span></div>
+            ${(payments||[]).map(p=>`<div class="row"><span>${p.label}</span><span>${currency(p.amount,false)}</span></div>`).join("")}
+          </div>
+        </div>
+        <script>window.print();</script>
+      </body></html>`;
+    const w = window.open("","_blank");
+    if(!w) return notify("Pop-up blocked","info");
+    w.document.write(html); w.document.close(); w.focus();
   }
 
   /* Executive Briefing derived */
@@ -199,11 +298,15 @@ export default function App(){
       <TopBar
         theme={theme}
         privacy={privacy}
+        pinSet={pinSet}
         onToggleTheme={()=>setTheme(theme==="noir"?"ivory":"noir")}
         onTogglePrivacy={()=>setPrivacy(privacy==="hide"?"show":"hide")}
         onNewRequest={()=>{ setRoute("requests"); setActiveReqId("new"); }}
         onExport={exportAll}
         onImport={(f)=>importAll(f)}
+        onLockNow={lockNow}
+        onOpenPin={()=>setShowPinModal(true)}
+        onOpenSettings={()=>setShowSettings(true)}
       />
       <div className="shell">
         <SideBar route={route} onNavigate={setRoute} />
@@ -247,8 +350,11 @@ export default function App(){
                     name={name}
                     theme={theme}
                     privacy={privacy}
+                    pinSet={pinSet}
                     onToggleTheme={()=>setTheme(theme==="noir"?"ivory":"noir")}
                     onTogglePrivacy={()=>setPrivacy(privacy==="hide"?"show":"hide")}
+                    onOpenPin={()=>setShowPinModal(true)}
+                    onLockNow={lockNow}
                   />
                 )}
                 {mobileTab === "chat" && (
@@ -303,6 +409,10 @@ export default function App(){
                 onQuickMessage={()=>sendChat("Hi — can you assist?")}
                 onCreateRequest={(title,notes)=>createRequest({title,category:"General",notes})}
                 onShare={(text)=>sendChat(text)}
+                timeZone={settings.timeZone}
+                onExportBrief={exportBrief}
+                onViewDecisions={()=>setRoute("requests")}
+                onViewInbox={()=>setRoute("requests")}
               />
             )
           )}
@@ -338,6 +448,9 @@ export default function App(){
           onUpdate={(patch)=>{ const id=activeReqId; setRequests(prev=>prev.map(r=>r.id===id?{...r,...patch}:r)); }}
         />
       )}
+      <LockOverlay locked={locked} onUnlock={unlockWith} />
+      <PinModal open={showPinModal} onClose={()=>setShowPinModal(false)} onSet={(p)=>{ setNewPin(p); setShowPinModal(false); }} />
+      <SettingsModal open={showSettings} settings={settings} onClose={()=>setShowSettings(false)} onSave={(patch)=>{ setSettings(s=>({...s,...patch})); setShowSettings(false); notify("Settings saved","ok"); }} />
       <ToastHost items={toasts} />
     </div>
   );
@@ -346,7 +459,7 @@ export default function App(){
 /* =======================================================================
    Shell
 ======================================================================= */
-function TopBar({ onNewRequest, theme, privacy, onToggleTheme, onTogglePrivacy, onExport, onImport }){
+function TopBar({ onNewRequest, theme, privacy, pinSet, onToggleTheme, onTogglePrivacy, onExport, onImport, onLockNow, onOpenPin, onOpenSettings }){
   return (
     <header className="topbar">
       <div className="topbar-inner">
@@ -359,11 +472,16 @@ function TopBar({ onNewRequest, theme, privacy, onToggleTheme, onTogglePrivacy, 
         </div>
         <div className="actions">
           <button className="btn btn-ghost ring" onClick={onTogglePrivacy}>{privacy==="hide"?"Show":"Hide"} sensitive</button>
+          {pinSet 
+            ? <button className="btn btn-ghost ring" onClick={onLockNow}>Lock</button>
+            : <button className="btn btn-ghost ring" onClick={onOpenPin}>Set PIN</button>
+          }
           <label className="btn btn-ghost ring" style={{display:"inline-grid", placeItems:"center"}}>
             Import<input type="file" accept=".json" style={{display:"none"}} onChange={(e)=>{ if(e.target.files?.[0]) onImport(e.target.files[0]); e.currentTarget.value=""; }}/>
           </label>
           <button className="btn btn-ghost ring" onClick={onExport}>Export</button>
           <button className="btn btn-ghost ring" onClick={onToggleTheme}>{theme==="noir"?"Ivory":"Noir"}</button>
+          <button className="btn btn-ghost ring" onClick={onOpenSettings}>Settings</button>
           <button className="btn btn-primary ring" onClick={onNewRequest}>New Request</button>
         </div>
       </div>
@@ -396,7 +514,8 @@ function SideBar({ route, onNavigate }){
 function ExecutiveDashboard({
   name, hideSensitive, pendingDecisions, unresolvedAlerts,
   nextEvent, leaveInMin, vehicles, properties, guests, inbox, nextTripSeg, money, datesManual, assets,
-  onApprove, onDecline, onDelegate, onQuickMessage, onCreateRequest, onShare
+  onApprove, onDecline, onDelegate, onQuickMessage, onCreateRequest, onShare, timeZone, onExportBrief,
+  onViewDecisions, onViewInbox
 }){
   const datesDerived = useMemo(()=>{
     const fromAssets = (assets||[]).filter(a=>a.renewal).map(a=>({ id:`asset-${a.id}`, label:`${a.name} renewal`, date:a.renewal, source:"Assets"}));
@@ -437,6 +556,7 @@ function ExecutiveDashboard({
           <div className="strip-label">Alerts</div>
         </div>
         <div className="strip-cta">
+          <button className="btn btn-ghost ring" onClick={onExportBrief}>Export Brief</button>
           <button className="btn btn-primary ring" onClick={onQuickMessage}>Message Concierge</button>
         </div>
       </div>
@@ -444,7 +564,13 @@ function ExecutiveDashboard({
       <div className="grid-3">
         {/* Decisions */}
         <section className="section">
-          <div className="section-header"><h3 className="h-with-rule">Decision Queue</h3><div className="meta">{pendingDecisions.length} pending</div></div>
+          <div className="section-header">
+            <h3 className="h-with-rule">Decision Queue</h3>
+            <div className="meta">
+              {pendingDecisions.length} pending
+              <button className="btn btn-ghost ring" style={{marginLeft:8}} onClick={onViewDecisions}>View all</button>
+            </div>
+          </div>
           {pendingDecisions.length===0 ? <div className="mono-note">No approvals needed.</div> : (
             <div className="list">
               {pendingDecisions.slice(0,4).map(d=>(
@@ -461,7 +587,6 @@ function ExecutiveDashboard({
                   <div className="row-actions" style={{marginTop:8}}>
                     <button className="btn btn-primary ring" onClick={()=>onApprove(d.id)}>Approve</button>
                     <button className="btn btn-ghost" onClick={()=>onDecline(d.id)}>Decline</button>
-                    <button className="btn btn-ghost" onClick={()=>onDelegate(d.id)}>Delegate</button>
                   </div>
                 </div>
               ))}
@@ -471,7 +596,13 @@ function ExecutiveDashboard({
 
         {/* Inbox */}
         <section className="section">
-          <div className="section-header"><h3 className="h-with-rule">Concierge Inbox</h3></div>
+          <div className="section-header">
+            <h3 className="h-with-rule">Concierge Inbox</h3>
+            <div className="meta">
+              {(inbox||[]).length} items
+              <button className="btn btn-ghost ring" style={{marginLeft:8}} onClick={onViewInbox}>View all</button>
+            </div>
+          </div>
           <div className="list">
             {(inbox||[]).slice(0,3).map(t=>(
               <div key={t.id} className="inbox-item">
@@ -480,7 +611,6 @@ function ExecutiveDashboard({
                 <div className="row-actions" style={{marginTop:8}}>
                   <button className="btn btn-ghost" onClick={()=>onCreateRequest(`Action: ${t.summary}`, `From ${t.from}`)}>Create request</button>
                   <button className="btn btn-ghost" onClick={()=>onShare?.(`${t.from}: ${t.summary}`)}>Share</button>
-                  <button className="btn btn-ghost">👍</button>
                 </div>
               </div>
             ))}
@@ -576,7 +706,7 @@ function ExecutiveDashboard({
               <div key={a.id} className={`alert ${a.severity==="High"?"alert--high":a.severity==="Medium"?"alert--med":"alert--low"}`}>
                 <div className="alert-dot"/><div className="alert-body">
                   <div className="alert-title">{a.message}</div>
-                  <div className="row-sub">{a.source} · {new Date(a.at).toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})}</div>
+                  <div className="row-sub">{a.source} · {new Date(a.at).toLocaleTimeString([], {hour:"2-digit", minute:"2-digit", timeZone})}</div>
                 </div>
                 <div className="row-actions">
                   <button className="btn btn-ghost" onClick={()=>{/* reserved for real resolve */}}>Resolve</button>
@@ -821,7 +951,7 @@ function PhoneChat({ name="Concierge", messages=[], onSend, onBack }){
     </div>
   );
 }
-function PhoneProfile({ name="Client", theme, privacy, onToggleTheme, onTogglePrivacy }){
+function PhoneProfile({ name="Client", theme, privacy, pinSet, onToggleTheme, onTogglePrivacy, onOpenPin, onLockNow }){
   const first=(String(name).split(" ")[0])||name;
   return (
     <div className="mobile-shell" style={{padding:16}}>
@@ -842,6 +972,22 @@ function PhoneProfile({ name="Client", theme, privacy, onToggleTheme, onTogglePr
         <div className="a-sub" style={{marginLeft:"auto", color:"var(--ink-3)"}}>{privacy==="hide"?"Sensitive hidden":"Sensitive visible"}</div>
         <span className="a-arrow" style={{opacity:.45, fontSize:20}}>›</span>
       </button>
+      <div style={{marginTop:12}} />
+      {pinSet ? (
+        <button className="action" style={{display:"flex",gap:12,alignItems:"center",padding:"14px 16px",border:"1px solid var(--line)",borderRadius:16,background:"var(--surface)"}}
+                onClick={onLockNow}>
+          <div className="a-label" style={{fontWeight:600}}>Lock</div>
+          <div className="a-sub" style={{marginLeft:"auto", color:"var(--ink-3)"}}>Immediately lock and hide</div>
+          <span className="a-arrow" style={{opacity:.45, fontSize:20}}>›</span>
+        </button>
+      ) : (
+        <button className="action" style={{display:"flex",gap:12,alignItems:"center",padding:"14px 16px",border:"1px solid var(--line)",borderRadius:16,background:"var(--surface)"}}
+                onClick={onOpenPin}>
+          <div className="a-label" style={{fontWeight:600}}>Set PIN</div>
+          <div className="a-sub" style={{marginLeft:"auto", color:"var(--ink-3)"}}>Create a 4–6 digit PIN</div>
+          <span className="a-arrow" style={{opacity:.45, fontSize:20}}>›</span>
+        </button>
+      )}
     </div>
   );
 }
@@ -1426,6 +1572,59 @@ function RequestDrawer({ mode, request, onClose, onCreate, onUpdate }){
    Small components
 ======================================================================= */
 function TagStatus({ value }){ const cls=value==="Open"?"tag tag--open":value==="In Progress"?"tag tag--progress":"tag tag--done"; return <span className={cls}>{value}</span>; }
+
+function LockOverlay({ locked, onUnlock }){
+  const [pin,setPin]=useState("");
+  const [err,setErr]=useState("");
+  if(!locked) return null;
+  const tryUnlock=()=>{
+    if(onUnlock?.(pin)) { setPin(""); setErr(""); }
+    else { setErr("Incorrect PIN"); }
+  };
+  return (
+    <div className="lock-overlay" style={{position:"fixed",inset:0,backdropFilter:"blur(8px)",background:"rgba(0,0,0,.4)",display:"grid",placeItems:"center",zIndex:9999}}>
+      <div className="lock-panel" style={{background:"var(--surface, #111)",color:"var(--ink, #eee)",padding:24,borderRadius:16,minWidth:280,boxShadow:"0 10px 30px rgba(0,0,0,.4)"}}>
+        <div style={{fontWeight:700,fontSize:18,marginBottom:12}}>Locked</div>
+        <div className="row-sub" style={{marginBottom:12,opacity:.8}}>Enter PIN to continue</div>
+        <input autoFocus className="input" inputMode="numeric" pattern="[0-9]*" placeholder="••••"
+               value={pin} onChange={e=>setPin(e.target.value)} onKeyDown={e=>e.key==="Enter"&&tryUnlock()} />
+        {err && <div className="mono-note" style={{color:"#ff6b6b",marginTop:8}}>{err}</div>}
+        <div style={{display:"flex",gap:8,justifyContent:"flex-end",marginTop:16}}>
+          <button className="btn btn-primary ring" onClick={tryUnlock}>Unlock</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PinModal({ open, onClose, onSet }){
+  const [p1,setP1]=useState("");
+  const [p2,setP2]=useState("");
+  const [err,setErr]=useState("");
+  if(!open) return null;
+  const save=()=>{
+    if(p1.length<4 || p1.length>6) { setErr("PIN must be 4–6 digits"); return; }
+    if(p1!==p2) { setErr("PINs do not match"); return; }
+    onSet?.(p1);
+    setP1(""); setP2(""); setErr("");
+  };
+  return (
+    <div className="modal-backdrop" onMouseDown={onClose}>
+      <div className="modal" onMouseDown={e=>e.stopPropagation()}>
+        <h3 style={{marginTop:0}}>Set PIN</h3>
+        <div className="form-grid">
+          <div className="field"><label>New PIN</label><input className="input" inputMode="numeric" pattern="[0-9]*" value={p1} onChange={e=>setP1(e.target.value)} /></div>
+          <div className="field"><label>Confirm PIN</label><input className="input" inputMode="numeric" pattern="[0-9]*" value={p2} onChange={e=>setP2(e.target.value)} /></div>
+        </div>
+        {err && <div className="mono-note" style={{color:"#ff6b6b",marginTop:8}}>{err}</div>}
+        <div className="form-nav" style={{justifyContent:"flex-end"}}>
+          <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
+          <button className="btn btn-primary ring" onClick={save}>Save PIN</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 function TagPriority({ value }){ const cls=value==="Urgent"?"tag tag--urgent":value==="High"?"tag tag--high":value==="Medium"?"tag tag--medium":"tag tag--low"; return <span className={cls}>{value}</span>; }
 function ToastHost({ items }){ return (<div className="toast-host">{items.map(t=>(<div key={t.id} className={`toast ${t.tone==="info"?"toast--info":"toast--ok"}`}>{t.tone==="info"?"•":"✓"} <span>{t.msg}</span></div>))}</div>); }
 
@@ -1497,3 +1696,43 @@ function Field({label,children}){ return (<div className="field"><label>{label}<
 function Input(props){ return <input {...props} className="input" />; }
 function TextArea(props){ return <textarea {...props} className="textarea" />; }
 function Select(props){ return <select {...props} className="select" />; }
+
+function SettingsModal({ open, settings, onClose, onSave }){
+  const [currency,setCurrency]=useState(settings?.currency||"GBP");
+  const [timeZone,setTimeZone]=useState(settings?.timeZone||"Europe/London");
+  const [autoLockMin,setAutoLockMin]=useState(settings?.autoLockMin||2);
+  const [travelBufferMin,setTravelBufferMin]=useState(settings?.travelBufferMin||30);
+  if(!open) return null;
+  const save=()=>onSave?.({ currency, timeZone, autoLockMin:Number(autoLockMin)||0, travelBufferMin:Number(travelBufferMin)||0 });
+  return (
+    <div className="modal-backdrop" onMouseDown={onClose}>
+      <div className="modal" onMouseDown={e=>e.stopPropagation()}>
+        <h3 style={{marginTop:0}}>Settings</h3>
+        <div className="form-grid">
+          <div className="field"><label>Currency</label>
+            <select className="select" value={currency} onChange={e=>setCurrency(e.target.value)}>
+              <option value="GBP">GBP – British Pound</option>
+              <option value="EUR">EUR – Euro</option>
+              <option value="USD">USD – US Dollar</option>
+              <option value="AED">AED – UAE Dirham</option>
+              <option value="CHF">CHF – Swiss Franc</option>
+            </select>
+          </div>
+          <div className="field"><label>Time Zone</label>
+            <input className="input" value={timeZone} onChange={e=>setTimeZone(e.target.value)} placeholder="e.g., Europe/London"/>
+          </div>
+          <div className="field"><label>Auto-lock after (minutes)</label>
+            <input className="input" value={autoLockMin} onChange={e=>setAutoLockMin(e.target.value)} />
+          </div>
+          <div className="field"><label>Travel buffer (minutes)</label>
+            <input className="input" value={travelBufferMin} onChange={e=>setTravelBufferMin(e.target.value)} />
+          </div>
+        </div>
+        <div className="form-nav" style={{justifyContent:"flex-end"}}>
+          <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
+          <button className="btn btn-primary ring" onClick={save}>Save</button>
+        </div>
+      </div>
+    </div>
+  );
+}
