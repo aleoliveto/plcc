@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 
-export default function MobileChat({ name="Concierge", messages=[], onSend, onBack }) {
+export default function MobileChat({ name="Concierge", messages=[], onSend, onBack, timeZone }) {
   const [text,setText]=useState("");
   const logRef = useRef(null);
   useEffect(()=>{ logRef.current?.scrollTo(0, logRef.current.scrollHeight); },[messages]);
@@ -21,7 +21,7 @@ export default function MobileChat({ name="Concierge", messages=[], onSend, onBa
           <div key={m.id} className={`chat-msg ${m.from==="me"?"me":"them"}`}>
             <div style={{fontSize:14}}>{m.text}</div>
             <div className="row-sub" style={{marginTop:4}}>
-              {new Date(m.at).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})}
+              {new Date(m.at).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit", timeZone})}
             </div>
           </div>
         ))}
@@ -29,7 +29,11 @@ export default function MobileChat({ name="Concierge", messages=[], onSend, onBa
 
       <div className="chat-composer">
         <input className="chat-input" placeholder="Message concierge…" value={text}
-               onChange={e=>setText(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()} />
+               onChange={e=>setText(e.target.value)}
+               onKeyDown={e=>{
+                 if(e.key==="Enter" && !e.shiftKey){ e.preventDefault(); send(); }
+                 if((e.key==="Enter" && (e.metaKey||e.ctrlKey))){ e.preventDefault(); send(); }
+               }} />
         <button className="chat-send btn btn-primary ring" onClick={send}>Send</button>
       </div>
     </div>

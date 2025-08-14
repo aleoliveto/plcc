@@ -21,6 +21,7 @@ export default function MobileHome({
     { label: "Personal shopping / gifts", emoji: "🎁", title: "Gift / shopping", notes: "Recipient, budget, deliver by", category: "Gifting" },
   ];
   const [msg, setMsg] = useState("");
+  const [showQuick, setShowQuick] = useState(false);
   const send = () => { if (!msg.trim()) return; onSendMessage?.(msg.trim()); setMsg(""); };
 
   return (
@@ -55,6 +56,7 @@ export default function MobileHome({
         ))}
       </div>
 
+      <button className="fab" onClick={()=>setShowQuick(true)}>＋</button>
       <div className="mobile-chatbar">
         <input
           className="chat-input"
@@ -65,6 +67,29 @@ export default function MobileHome({
         />
         <button className="chat-send" onClick={send}>Send</button>
       </div>
+
+      {showQuick && (
+        <div className="sheet-backdrop" onMouseDown={()=>setShowQuick(false)}>
+          <div className="sheet" onMouseDown={e=>e.stopPropagation()}>
+            <div className="sheet-handle"/>
+            <div className="sheet-title">Quick Actions</div>
+            <div className="sheet-list">
+              {shortcuts.map((s,i)=> (
+                <button key={i} className="sheet-item" onClick={()=>{ onShortcut?.({ title:s.title, notes:s.notes, category:s.category }); setShowQuick(false); }}>
+                  <div className="sheet-item-main">
+                    <div className="sheet-item-title">{s.title}</div>
+                    <div className="sheet-item-sub">{s.notes}</div>
+                  </div>
+                  <div className="sheet-chevron">›</div>
+                </button>
+              ))}
+            </div>
+            <div className="sheet-foot">
+              <button className="btn btn-ghost ring" onClick={()=>setShowQuick(false)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
