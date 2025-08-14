@@ -189,6 +189,9 @@ export default function App(){
   /* ====== Screen ====== */
   const screen = useScreen();
 
+  /* ====== Quick Action Sheet (state) ====== */
+  const [quickOpen, setQuickOpen] = useState(false);
+
   /* ====== Render ====== */
   return (
     <div className="app">
@@ -211,19 +214,27 @@ export default function App(){
             screen.isPhone ? (
               <>
                 {mobileTab === "home" && (
-                  <PhoneHome
+                  <PhoneDashboard
                     name={name}
+                    pendingDecisions={pendingDecisions}
+                    unresolvedAlerts={unresolvedAlerts}
                     nextEvent={nextEvent}
                     leaveInMin={leaveInMin}
-                    pendingCount={pendingDecisions.length}
-                    alertCount={unresolvedAlerts.length}
-                    onShortcut={({title, notes, category}) => createRequest({ title, notes, category })}
-                    onSendMessage={(text)=>sendChat(text)}
+                    nextTripSeg={nextTripSeg}
+                    money={money}
+                    properties={properties}
+                    onOpenQuick={()=>setQuickOpen(true)}
+                    onGoRequests={()=>setMobileTab("requests")}
+                    onGoCalendar={()=>setRoute("calendar")}
+                    onGoTravel={()=>setRoute("travel")}
+                    onGoProperties={()=>setRoute("properties")}
+                    onGoMoney={()=>setRoute("assets")}
                   />
                 )}
                 {mobileTab === "requests" && (
-                  <Requests
+                  <PhoneRequests
                     items={requests}
+                    onBack={()=>setMobileTab("home")}
                     onCreate={(p)=>{ const rec={id:uid(),createdAt:Date.now(),status:"Open",...p}; setRequests([rec,...requests]); }}
                     onUpdate={(id,patch)=>setRequests(prev=>prev.map(r=>r.id===id?{...r,...patch}:r))}
                     onDelete={(id)=>setRequests(prev=>prev.filter(r=>r.id!==id))}
@@ -252,6 +263,11 @@ export default function App(){
                   active={mobileTab}
                   onChange={(k)=>{ setMobileTab(k); if(k==="home") markThreadRead(); }}
                   badges={{ home: unreadCount, requests: openRequestsCount, profile: 0 }}
+                />
+                <QuickActionSheet
+                  open={quickOpen}
+                  onClose={()=>setQuickOpen(false)}
+                  onShortcut={({title, notes, category}) => createRequest({ title, notes, category })}
                 />
               </>
             ) : screen.isTablet ? (
@@ -594,10 +610,86 @@ function PhoneTabs({ active, onChange, badges = {} }){
   );
 }
 
-function PhoneHome({ name="Client", nextEvent, leaveInMin, pendingCount=0, alertCount=0, onShortcut, onSendMessage }){
+/* ---- iOS-style widget Home + FAB ---- */
+function PhoneDashboard({
+  name="Client",
+  pendingDecisions=[],
+  unresolvedAlerts=[],
+  nextEvent, leaveInMin,
+  nextTripSeg, money, properties=[],
+  onOpenQuick, onGoRequests, onGoCalendar, onGoTravel, onGoProperties, onGoMoney
+}) {
   const first = String(name).split(" ")[0] || name;
   const h = new Date().getHours();
   const greet = h >= 18 ? "Good Evening" : h >= 12 ? "Good Afternoon" : "Good Morning";
+  const mtd = money?.mtdDiscretionary ?? 0;
+  const plan = money?.plan ?? 0;
+  const variance = plan ? Math.round(((mtd - plan) / plan) * 100) : 0;
+
+  return (
+    <div className="mobile-shell">
+      <header className="mobile-header">
+        <div style={{display:"grid", gap:6}}>
+          <div style={{fontSize:18, fontWeight:700, letterSpacing:"0.01em"}}>{greet}, {first}.</div>
+          <div className="mh-sub">
+            {nextEvent ? `${nextEvent.time} — ${nextEvent.title}` : "No upcoming events"}
+            {typeof leaveInMin === "number" && (
+              <span className={`pill ${leaveInMin <= 0 ? "pill--late" : ""}`}>
+                {leaveInMin > 0 ? `Leave in ${leaveInMin}m` : `Late ${Math.abs(leaveInMin)}m`}
+              </span>
+            )}
+          </div>
+        </div>
+      </header>
+
+      {/* Widget grid */}
+      <div className="w-grid">
+        <button className="widget" onClick={onGoRequests}>
+          <div className="w-k">Decision Queue</div>
+          <div className="w-v">{pendingDecisions.length}</div>
+          <div className="w-sub">Approvals awaiting</div>
+        </button>
+
+        <div className="widget">
+          <div className="w-k">Alerts</div>
+          <div className={`w-v ${unresolvedAlerts.length ? "warn" : ""}`}>{unresolvedAlerts.length}</div>
+          <div className="w-sub">{unresolvedAlerts[0]?.message || "All clear"}</div>
+        </div>
+
+        <button className="widget" onClick={onGoCalendar}>
+          <div className="w-k">Next</div>
+          <div className="w-v">{nextEvent ? nextEvent.time : "—"}</div>
+          <div className="w-sub">{nextEvent ? (nextEvent.location || nextEvent.title) : "No upcoming"}</div>
+        </button>
+
+        <button className="widget widget--wide" onClick={onGoTravel}>
+          <div className="w-k">Travel</div>
+          <div className="w-v">{nextTripSeg ? `${nextTripSeg.date} ${nextTripSeg.time}` : "—"}</div>
+          <div className="w-sub">{nextTripSeg ? nextTripSeg.detail : "No upcoming segments"}</div>
+        </button>
+
+        <button className="widget" onClick={onGoMoney}>
+          <div className="w-k">MTD Spend</div>
+          <div className="w-v">{new Intl.NumberFormat(undefined,{style:"currency",currency:"GBP"}).format(mtd)}</div>
+          <div className="w-sub">{variance ? `${variance>0?"+":""}${variance}% vs plan` : "—"}</div>
+        </button>
+
+        <button className="widget" onClick={onGoProperties}>
+          <div className="w-k">Residences</div>
+          <div className="w-v">{properties.length || 0}</div>
+          <div className="w-sub">{properties[0]?.name || "Manage access & tasks"}</div>
+        </button>
+      </div>
+
+      {/* Floating + (opens quick-add sheet) */}
+      <button className="fab" aria-label="Quick actions" onClick={onOpenQuick}>＋</button>
+    </div>
+  );
+}
+
+/* ---- Bottom Quick Action Sheet ---- */
+function QuickActionSheet({ open, onClose, onShortcut }) {
+  if (!open) return null;
   const actions = [
     { t:"Dining reservation", s:"Cuisine, time, guests", c:"Dining" },
     { t:"Hotel booking", s:"City, dates, room type", c:"Travel" },
@@ -606,55 +698,90 @@ function PhoneHome({ name="Client", nextEvent, leaveInMin, pendingCount=0, alert
     { t:"Gifting / shopping", s:"Recipient, budget, delivery by", c:"Gifting" },
     { t:"Car / chauffeur", s:"Pickup, time, bags", c:"Transport" },
   ];
-  const [msg, setMsg] = useState("");
-  const send = ()=>{ if(!msg.trim()) return; onSendMessage?.(msg.trim()); setMsg(""); };
+  function pick(a){
+    onShortcut?.({ title: a.t, notes: a.s, category: a.c });
+    onClose?.();
+  }
+  return (
+    <div className="sheet-backdrop" onMouseDown={onClose}>
+      <div className="sheet" onMouseDown={(e)=>e.stopPropagation()}>
+        <div className="sheet-handle"/>
+        <div className="sheet-title">Create request</div>
+        <div className="sheet-list">
+          {actions.map((a,i)=>(
+            <button key={i} className="sheet-item" onClick={()=>pick(a)}>
+              <div className="sheet-item-main">
+                <div className="sheet-item-title">{a.t}</div>
+                <div className="sheet-item-sub">{a.s}</div>
+              </div>
+              <div className="sheet-chevron">›</div>
+            </button>
+          ))}
+        </div>
+        <div className="sheet-foot">
+          <button className="btn btn-ghost" onClick={onClose}>Close</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---- Mobile Requests (sticky header, back) ---- */
+function PhoneRequests({ items, onBack, onCreate, onUpdate, onDelete, onOpen, onShareToChat }) {
+  const [q,setQ]=useState(""); 
+  const [status,setStatus]=useState("All");
+  const [prio,setPrio]=useState("All");
+  const filtered = useMemo(()=>items
+    .filter(r=>status==="All"?true:r.status===status)
+    .filter(r=>prio==="All"?true:r.priority===prio)
+    .filter(r=>q.trim() ? (r.title+r.notes).toLowerCase().includes(q.toLowerCase()) : true)
+    .sort((a,b)=>b.createdAt-a.createdAt),[items,q,status,prio]);
 
   return (
-    <div className="mobile-shell">
-      <header className="mobile-header" style={{background:
-        "linear-gradient(180deg, rgba(10,10,10,1) 0%, rgba(8,8,8,1) 100%)",
-        borderBottomLeftRadius:18, borderBottomRightRadius:18}}>
-        <div style={{display:"grid", gap:6}}>
-          <div style={{fontSize:18, fontWeight:700, letterSpacing:"0.01em"}}>{greet}, {first}.</div>
-          <div className="mh-sub" style={{opacity:.9}}>
-            {nextEvent ? `${nextEvent.time} — ${nextEvent.title}` : "No upcoming events"}
-            {typeof leaveInMin === "number" && (
-              <span className={`pill ${leaveInMin <= 0 ? "pill--late" : ""}`}>
-                {leaveInMin > 0 ? `Leave in ${leaveInMin}m` : `Late ${Math.abs(leaveInMin)}m`}
-              </span>
-            )}
-          </div>
-          <div className="mh-status" style={{opacity:.85}}>
-            <span className="badge">{pendingCount}</span> Decisions
-            <span className={`badge ${alertCount ? "badge--alert" : ""}`} style={{marginLeft:8}}>{alertCount}</span> Alerts
-          </div>
-        </div>
+    <div className="page">
+      <header className="m-header">
+        <button className="hbtn" onClick={onBack}>‹</button>
+        <div className="m-title">Requests</div>
+        <button className="hbtn" onClick={()=>onCreate({
+          title:"", category:"General", priority:"Medium", assignee:"", dueDate:"", notes:""
+        })}>＋</button>
       </header>
 
-      <div style={{padding:"14px", display:"grid", gap:10}}>
-        {actions.map((a,i)=>(
-          <button key={i}
-            className="action action--lg"
-            style={{background:"var(--surface)", border:"1px solid var(--line)", borderRadius:16, padding:"14px 16px", textAlign:"left"}}
-            onClick={()=>onShortcut?.({title:a.t, notes:a.s, category:a.c})}>
-            <div style={{display:"grid", gap:4}}>
-              <div style={{fontWeight:600}}>{a.t}</div>
-              <div className="a-sub" style={{fontSize:13, color:"var(--ink-3)"}}>{a.s}</div>
-            </div>
-            <span className="a-arrow" style={{marginLeft:"auto", opacity:.45, fontSize:20}}>›</span>
-          </button>
-        ))}
+      <div className="m-toolbar">
+        <input className="input" placeholder="Search…" value={q} onChange={e=>setQ(e.target.value)} />
+        <div className="seg">
+          {["All","Open","In Progress","Done"].map(s=>(
+            <button key={s} className={`seg-item ${status===s?"active":""}`} onClick={()=>setStatus(s)}>{s}</button>
+          ))}
+        </div>
+        <div className="seg">
+          {["All","Low","Medium","High","Urgent"].map(s=>(
+            <button key={s} className={`seg-item ${prio===s?"active":""}`} onClick={()=>setPrio(s)}>{s}</button>
+          ))}
+        </div>
       </div>
 
-      <div className="mobile-chatbar" style={{backdropFilter:"saturate(120%) blur(8px)"}}>
-        <input
-          className="chat-input"
-          placeholder="Message your concierge…"
-          value={msg}
-          onChange={e=>setMsg(e.target.value)}
-          onKeyDown={e=>e.key==="Enter"&&send()}
-        />
-        <button className="chat-send btn btn-primary ring" onClick={send}>Send</button>
+      <div className="m-list">
+        {filtered.map(r=>(
+          <div key={r.id} className="m-card" onClick={()=>onOpen(r.id)}>
+            <div className="m-row">
+              <div className="m-title-2">{r.title}</div>
+              <span className="m-chevron">›</span>
+            </div>
+            <div className="row-sub">{r.notes}</div>
+            <div className="m-meta">
+              <TagStatus value={r.status}/><span>·</span><TagPriority value={r.priority}/>
+              {r.dueDate && <><span>·</span><span className="row-sub">Due {r.dueDate}</span></>}
+            </div>
+            <div className="row-actions" style={{marginTop:8}}>
+              <button className="btn btn-ghost" onClick={(e)=>{e.stopPropagation(); onShareToChat?.(`${r.title} — ${r.status}${r.dueDate?` · due ${r.dueDate}`:""}`);}}>Share</button>
+              {r.status!=="Done" && <button className="btn btn-ghost" onClick={(e)=>{e.stopPropagation(); onUpdate(r.id,{status:"Done"});}}>Mark done</button>}
+              {r.status==="Open" && <button className="btn btn-ghost" onClick={(e)=>{e.stopPropagation(); onUpdate(r.id,{status:"In Progress"});}}>Start</button>}
+              <button className="btn btn-ghost" onClick={(e)=>{e.stopPropagation(); onDelete(r.id);}}>Delete</button>
+            </div>
+          </div>
+        ))}
+        {filtered.length===0 && <div className="mono-note" style={{padding:12}}>No results.</div>}
       </div>
     </div>
   );
@@ -1205,7 +1332,7 @@ function DatesPage({ manual, setManual, assets }){
 }
 
 /* =======================================================================
-   Requests + Drawer
+   Requests + Drawer (desktop/tablet)
 ======================================================================= */
 function Requests({ items, onCreate, onUpdate, onDelete, onOpen, onShareToChat }){
   const [q,setQ]=useState(""); const [status,setStatus]=useState("All"); const [prio,setPrio]=useState("All");
