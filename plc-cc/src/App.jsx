@@ -505,74 +505,134 @@ export default function App(){
 }
 
 /* =======================================================================
-   Landing Page (public) — explains value + login
+   Landing Page (public) — polished
 ======================================================================= */
 function LandingPage({ onSignIn }){
   return (
     <div className="landing">
       <header className="landing-top">
         <div className="landing-brand">
-          <div className="monogram"><PLMonogram/></div>
-          <div className="brand-title">
-            <div className="brand-subtle">Private Life</div>
-            <div className="brand-strong">Command Center</div>
+          <div className="brand" style={{gap:12}}>
+            <div className="monogram"><PLMonogram/></div>
+            <div className="brand-title">
+              <div className="brand-subtle">Private Life</div>
+              <div className="brand-strong">Command Center</div>
+            </div>
           </div>
-        </div>
-        <div className="landing-actions">
-          <a className="btn btn-ghost ring" href="#features">Features</a>
-          <a className="btn btn-ghost ring" href="#how">How it works</a>
-          <button className="btn btn-primary ring" onClick={onSignIn}>Sign in</button>
+          <div className="landing-actions">
+            <a className="nav-link ring" href="#features">Features</a>
+            <a className="nav-link ring" href="#how">How it works</a>
+            <a className="nav-link ring" href="#trust">Trust</a>
+            <button className="btn btn-primary ring" onClick={onSignIn}>Sign in</button>
+          </div>
         </div>
       </header>
 
-      <main className="landing-hero container">
+      {/* Hero */}
+      <section className="landing-hero">
         <div className="hero-copy">
-          <h1 className="hero-title">Your life, handled.</h1>
-          <p className="hero-sub">A private dashboard for requests, travel, residences and concierge chat — all in one calm place.</p>
+          <div className="hero-eyebrow">Concierge, calendar, travel</div>
+          <h1 className="hero-title">Your private <strong>command center</strong> for life admin.</h1>
+          <p className="hero-sub">Requests, chat, travel, properties and money — brought into one calm, secure place. Designed for speed, privacy and clarity.</p>
           <div className="hero-cta">
             <button className="btn btn-primary ring" onClick={onSignIn}>Enter dashboard</button>
-            <a className="btn ring" href="#features">See features</a>
+            <a className="btn ring" href="#features">Explore features</a>
+            <span className="mono-note">No install · works on iPhone</span>
           </div>
-          <ul className="hero-points">
-            <li>Concierge requests with approvals</li>
-            <li>Calendar, travel and properties</li>
-            <li>Private chat with receipts & shares</li>
-          </ul>
-        </div>
-        <div className="hero-card">
-          <div className="card" style={{padding:16}}>
-            <div className="h-with-rule" style={{marginBottom:8}}>At a glance</div>
-            <div className="log-row"><div className="log-title">Decision queue</div><div className="row-sub">Approve bookings & payments</div></div>
-            <div className="log-row"><div className="log-title">Concierge inbox</div><div className="row-sub">Share to chat or create request</div></div>
-            <div className="log-row"><div className="log-title">Travel</div><div className="row-sub">Next segment, conf codes</div></div>
+          <div className="logo-row" aria-label="Trusted by">
+            <span className="logo-pill">Discreet households</span>
+            <span className="logo-pill">Family offices</span>
+            <span className="logo-pill">Travellers</span>
+            <span className="logo-pill">Private members</span>
           </div>
         </div>
-      </main>
-
-      <section id="features" className="landing-features container">
-        <div className="feature">
-          <h3>Requests with status</h3>
-          <p>Create, track and complete tasks with your team. Share any item to chat in one click.</p>
-        </div>
-        <div className="feature">
-          <h3>Calendar & dates</h3>
-          <p>See the next thing and when to leave. Export briefings for travel days.</p>
-        </div>
-        <div className="feature">
-          <h3>Properties & assets</h3>
-          <p>Keep key info to hand. Renewals and maintenance at a glance.</p>
+        <div className="hero-blob">
+          <div className="h-with-rule" style={{marginBottom:8}}>At a glance</div>
+          <div className="log-row"><div className="log-title">Decision queue</div><div className="row-sub">Approve bookings & payments</div></div>
+          <div className="log-row"><div className="log-title">Concierge inbox</div><div className="row-sub">Share to chat or create request</div></div>
+          <div className="log-row"><div className="log-title">Travel</div><div className="row-sub">Next segment, conf codes</div></div>
         </div>
       </section>
 
-      <section id="how" className="landing-how container">
-        <div className="how-card card">
-          <h3 style={{marginTop:0}}>How it works</h3>
+      {/* KPIs */}
+      <section className="kpis">
+        <div className="kpi"><div className="v">1 place</div><div className="k">For chat, requests & travel</div></div>
+        <div className="kpi"><div className="v">Private</div><div className="k">Local PIN lock & safe areas</div></div>
+        <div className="kpi"><div className="v">Fast</div><div className="k">Mobile-first, instant actions</div></div>
+      </section>
+
+      {/* Features */}
+      <section id="features" className="landing-features">
+        <div className="feature">
+          <div className="f-eyebrow">Requests</div>
+          <h3>Track and approve</h3>
+          <p>Create tasks, assign, and update status. Convert any chat into a tracked request.</p>
+        </div>
+        <div className="feature">
+          <div className="f-eyebrow">Chat</div>
+          <h3>Concierge inbox</h3>
+          <p>Message your team, drop files and links, and share to requests with one tap.</p>
+        </div>
+        <div className="feature">
+          <div className="f-eyebrow">Travel</div>
+          <h3>Segments & briefings</h3>
+          <p>See what’s next, confirmation codes, and export a printable day brief.</p>
+        </div>
+        <div className="feature">
+          <div className="f-eyebrow">Properties</div>
+          <h3>Residences & assets</h3>
+          <p>Keep key info, renewals and contacts to hand. Share to chat instantly.</p>
+        </div>
+        <div className="feature">
+          <div className="f-eyebrow">Privacy</div>
+          <h3>Hide sensitive</h3>
+          <p>One click to mask amounts and addresses. Auto-lock with a local PIN.</p>
+        </div>
+        <div className="feature">
+          <div className="f-eyebrow">Speed</div>
+          <h3>Quick actions</h3>
+          <p>Use the mobile sheet or keyboard to add requests and send messages fast.</p>
+        </div>
+      </section>
+
+      {/* Split: How it works + Trust */}
+      <section className="split" id="how">
+        <div className="panel">
+          <h3 className="h-with-rule" style={{marginTop:0}}>How it works</h3>
           <ol>
             <li>Sign in to your private dashboard</li>
             <li>Create requests or message your concierge</li>
             <li>Approve decisions and track progress</li>
           </ol>
-          <button className="btn btn-primary ring" onClick={onSignIn}>Sign in</button>
+        </div>
+        <div className="panel" id="trust">
+          <h3 className="h-with-rule" style={{marginTop:0}}>Trust & privacy</h3>
+          <p className="row-sub">Your data stays in your browser’s storage by default. You control exports and imports. Optional PIN lock and sensitive masking are built in.</p>
+        </div>
+      </section>
+
+      {/* Testimonials */}
+      <section className="testimonials">
+        <div className="quote">
+          “It finally puts everything in one place. Approvals are painless.”
+          <div className="who">— Family office client</div>
+        </div>
+        <div className="quote">
+          “The mobile view is clean and quick. Our concierge uses it daily.”
+          <div className="who">— Household manager</div>
+        </div>
+      </section>
+
+      {/* CTA band */}
+      <section className="cta-band">
+        <div className="cta-inner">
+          <div>
+            <div className="h-with-rule" style={{marginTop:0}}>Ready when you are</div>
+            <div className="row-sub">Works on iPhone, iPad and desktop. No install.</div>
+          </div>
+          <div>
+            <button className="btn btn-primary ring" onClick={onSignIn}>Sign in</button>
+          </div>
         </div>
       </section>
 
