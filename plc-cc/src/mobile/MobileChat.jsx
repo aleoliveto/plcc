@@ -28,13 +28,26 @@ export default function MobileChat({ name="Concierge", messages=[], onSend, onBa
       </div>
 
       <div className="chat-composer">
-        <input className="chat-input" placeholder="Message concierge…" value={text}
-               onChange={e=>setText(e.target.value)}
-               onKeyDown={e=>{
-                 if(e.key==="Enter" && !e.shiftKey){ e.preventDefault(); send(); }
-                 if((e.key==="Enter" && (e.metaKey||e.ctrlKey))){ e.preventDefault(); send(); }
-               }} />
-        <button className="chat-send btn btn-primary ring" onClick={send}>Send</button>
+        <input
+          className="chat-input"
+          placeholder="Message concierge…"
+          aria-label="Message input"
+          value={text}
+          autoFocus
+          onChange={e=>setText(e.target.value)}
+          onKeyDown={e=>{
+            if(e.key==="Enter" && !e.shiftKey){ e.preventDefault(); send(); }
+            if((e.key==="Enter" && (e.metaKey||e.ctrlKey))){ e.preventDefault(); send(); }
+          }}
+        />
+        <button
+          className="chat-send btn btn-primary ring"
+          aria-label="Send message"
+          onClick={send}
+          disabled={!text.trim()}
+        >
+          Send
+        </button>
       </div>
     </div>
   );

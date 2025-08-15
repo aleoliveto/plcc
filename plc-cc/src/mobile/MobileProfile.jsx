@@ -1,6 +1,6 @@
 import React from "react";
 
-export default function MobileProfile({ name="Client", theme, privacy, onToggleTheme, onTogglePrivacy }) {
+export default function MobileProfile({ name="Client", theme, privacy, onToggleTheme, onTogglePrivacy, onSignOut }) {
   const first=(String(name).split(" ")[0])||name;
   return (
     <div className="mobile-shell" style={{padding:16}}>
@@ -16,6 +16,10 @@ export default function MobileProfile({ name="Client", theme, privacy, onToggleT
       <button className="action" onClick={onTogglePrivacy} style={{marginTop:8}}>
         <span className="a-emoji">🫥</span><span className="a-label">Privacy</span>
         <span className="a-sub">{privacy==="hide"?"Sensitive hidden":"Sensitive visible"}</span><span className="a-arrow">›</span>
+      </button>
+      <button className="action" style={{marginTop:8}} onClick={onSignOut}>
+        <span className="a-emoji">🚪</span><span className="a-label">Sign out</span>
+        <span className="a-sub">Return to landing</span><span className="a-arrow">›</span>
       </button>
     </div>
   );

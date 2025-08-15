@@ -36,14 +36,11 @@ function useScreen() {
 /* ========= Nav ========= */
 const NAV = [
   { key: "dashboard", label: "Dashboard" },
+  { key: "requests", label: "Requests" },
   { key: "calendar", label: "Calendar" },
-  { key: "properties", label: "Properties" },
-  { key: "contacts", label: "Contacts" },
   { key: "travel", label: "Travel" },
   { key: "assets", label: "Assets" },
-  { key: "dates", label: "Important Dates" },
-  { key: "requests", label: "Requests" },
-  { key: "onboarding", label: "Onboarding" },
+  { key: "properties", label: "Properties" },
 ];
 
 /* =======================================================================
@@ -54,6 +51,7 @@ export default function App(){
   const [theme,setTheme] = useLocalState("plc_theme","noir");
   useEffect(()=>{ document.body.dataset.theme = theme; },[theme]);
   const [privacy,setPrivacy] = useLocalState("plc_privacy","show"); // "show" | "hide"
+  const [signedIn, setSignedIn] = useLocalState("plc_signed_in_v1", false);
   const hideSensitive = privacy === "hide";
   // Ensure settings exists before any effects use it
   const [settings,setSettings] = useLocalState("plc_settings_v1",{
@@ -292,6 +290,9 @@ export default function App(){
   const [quickOpen, setQuickOpen] = useState(false);
 
   /* ====== Render ====== */
+  if(!signedIn){
+    return <LandingPage onSignIn={()=>setSignedIn(true)} />;
+  }
   return (
     <div className="app">
       {/* Top & shell hidden on phone by CSS media queries */}
@@ -327,6 +328,7 @@ export default function App(){
                     money={money}
                     properties={properties}
                     onOpenQuick={()=>setQuickOpen(true)}
+                    onOpenChat={()=>setMobileTab("chat")}
                     onGoRequests={()=>setMobileTab("requests")}
                     onGoCalendar={()=>setRoute("calendar")}
                     onGoTravel={()=>setRoute("travel")}
@@ -355,6 +357,7 @@ export default function App(){
                     onTogglePrivacy={()=>setPrivacy(privacy==="hide"?"show":"hide")}
                     onOpenPin={()=>setShowPinModal(true)}
                     onLockNow={lockNow}
+                    onSignOut={()=>setSignedIn(false)}
                   />
                 )}
                 {mobileTab === "chat" && (
@@ -365,11 +368,13 @@ export default function App(){
                     onBack={()=>{ setMobileTab("home"); markThreadRead(); }}
                   />
                 )}
-                <PhoneTabs
-                  active={mobileTab}
-                  onChange={(k)=>{ setMobileTab(k); if(k==="home") markThreadRead(); }}
-                  badges={{ home: unreadCount, requests: openRequestsCount, profile: 0 }}
-                />
+                {mobileTab !== "chat" && (
+                  <PhoneTabs
+                    active={mobileTab}
+                    onChange={(k)=>{ setMobileTab(k); if(k==="home") markThreadRead(); }}
+                    badges={{ home: unreadCount, requests: openRequestsCount, profile: 0 }}
+                  />
+                )}
                 <QuickActionSheet
                   open={quickOpen}
                   onClose={()=>setQuickOpen(false)}
@@ -426,14 +431,34 @@ export default function App(){
           {route==="dates" && (<DatesPage manual={datesManual} setManual={setDatesManual} assets={assets} />)}
           {route==="onboarding" && (<OnboardingForm data={onboarding} onChange={setOnboarding} onComplete={()=>{ setRoute("dashboard"); notify("Onboarding saved"); }} />)}
           {route==="requests" && (
-            <Requests
-              items={requests}
-              onCreate={(p)=>{ const rec={id:uid(),createdAt:Date.now(),status:"Open",...p}; setRequests([rec,...requests]); }}
-              onUpdate={(id,patch)=>setRequests(prev=>prev.map(r=>r.id===id?{...r,...patch}:r))}
-              onDelete={(id)=>setRequests(prev=>prev.filter(r=>r.id!==id))}
-              onOpen={(id)=>setActiveReqId(id)}
-              onShareToChat={(text)=>sendChat(text)}
-            />
+            screen.isPhone ? (
+              <div className="page requests-page">
+                <div className="m-header">
+                  <button className="hbtn" onClick={()=>{ setRoute("dashboard"); setMobileTab("home"); }} aria-label="Back">‹</button>
+                  <div className="m-title">Requests</div>
+                  <div></div>
+                </div>
+                <div style={{padding:12}}>
+                  <Requests
+                    items={requests}
+                    onCreate={(p)=>{ const rec={id:uid(),createdAt:Date.now(),status:"Open",...p}; setRequests([rec,...requests]); }}
+                    onUpdate={(id,patch)=>setRequests(prev=>prev.map(r=>r.id===id?{...r,...patch}:r))}
+                    onDelete={(id)=>setRequests(prev=>prev.filter(r=>r.id!==id))}
+                    onOpen={(id)=>setActiveReqId(id)}
+                    onShareToChat={(text)=>sendChat(text)}
+                  />
+                </div>
+              </div>
+            ) : (
+              <Requests
+                items={requests}
+                onCreate={(p)=>{ const rec={id:uid(),createdAt:Date.now(),status:"Open",...p}; setRequests([rec,...requests]); }}
+                onUpdate={(id,patch)=>setRequests(prev=>prev.map(r=>r.id===id?{...r,...patch}:r))}
+                onDelete={(id)=>setRequests(prev=>prev.filter(r=>r.id!==id))}
+                onOpen={(id)=>setActiveReqId(id)}
+                onShareToChat={(text)=>sendChat(text)}
+              />
+            )
           )}
         </main>
       </div>
@@ -450,8 +475,110 @@ export default function App(){
       )}
       <LockOverlay locked={locked} onUnlock={unlockWith} />
       <PinModal open={showPinModal} onClose={()=>setShowPinModal(false)} onSet={(p)=>{ setNewPin(p); setShowPinModal(false); }} />
-      <SettingsModal open={showSettings} settings={settings} onClose={()=>setShowSettings(false)} onSave={(patch)=>{ setSettings(s=>({...s,...patch})); setShowSettings(false); notify("Settings saved","ok"); }} />
+      <SettingsModal
+  open={showSettings}
+  settings={settings}
+  onClose={()=>setShowSettings(false)}
+  onSave={(patch)=>{ setSettings(s=>({...s,...patch})); setShowSettings(false); notify("Settings saved","ok"); }}
+  onImport={(file)=>importAll(file)}
+  onExport={()=>exportAll()}
+/>
       <ToastHost items={toasts} />
+      <div className="card" style={{marginTop:12}}>
+  <div className="h-with-rule" style={{marginTop:0}}>Data</div>
+  <div className="row-sub" style={{marginTop:6}}>Import or export your dashboard data.</div>
+  <div style={{display:"flex", gap:8, marginTop:10}}>
+    <label className="btn btn-ghost ring" style={{display:"inline-grid", placeItems:"center"}}>
+      Import data
+      <input
+        type="file"
+        accept=".json"
+        style={{display:"none"}}
+        onChange={(e)=>{ const f=e.target.files?.[0]; if(f){ onImport?.(f); } e.currentTarget.value=""; }}
+      />
+    </label>
+    <button className="btn btn-ghost ring" onClick={()=>onExport?.()}>Export data</button>
+  </div>
+</div>
+    </div>
+  );
+}
+
+/* =======================================================================
+   Landing Page (public) — explains value + login
+======================================================================= */
+function LandingPage({ onSignIn }){
+  return (
+    <div className="landing">
+      <header className="landing-top">
+        <div className="landing-brand">
+          <div className="monogram"><PLMonogram/></div>
+          <div className="brand-title">
+            <div className="brand-subtle">Private Life</div>
+            <div className="brand-strong">Command Center</div>
+          </div>
+        </div>
+        <div className="landing-actions">
+          <a className="btn btn-ghost ring" href="#features">Features</a>
+          <a className="btn btn-ghost ring" href="#how">How it works</a>
+          <button className="btn btn-primary ring" onClick={onSignIn}>Sign in</button>
+        </div>
+      </header>
+
+      <main className="landing-hero container">
+        <div className="hero-copy">
+          <h1 className="hero-title">Your life, handled.</h1>
+          <p className="hero-sub">A private dashboard for requests, travel, residences and concierge chat — all in one calm place.</p>
+          <div className="hero-cta">
+            <button className="btn btn-primary ring" onClick={onSignIn}>Enter dashboard</button>
+            <a className="btn ring" href="#features">See features</a>
+          </div>
+          <ul className="hero-points">
+            <li>Concierge requests with approvals</li>
+            <li>Calendar, travel and properties</li>
+            <li>Private chat with receipts & shares</li>
+          </ul>
+        </div>
+        <div className="hero-card">
+          <div className="card" style={{padding:16}}>
+            <div className="h-with-rule" style={{marginBottom:8}}>At a glance</div>
+            <div className="log-row"><div className="log-title">Decision queue</div><div className="row-sub">Approve bookings & payments</div></div>
+            <div className="log-row"><div className="log-title">Concierge inbox</div><div className="row-sub">Share to chat or create request</div></div>
+            <div className="log-row"><div className="log-title">Travel</div><div className="row-sub">Next segment, conf codes</div></div>
+          </div>
+        </div>
+      </main>
+
+      <section id="features" className="landing-features container">
+        <div className="feature">
+          <h3>Requests with status</h3>
+          <p>Create, track and complete tasks with your team. Share any item to chat in one click.</p>
+        </div>
+        <div className="feature">
+          <h3>Calendar & dates</h3>
+          <p>See the next thing and when to leave. Export briefings for travel days.</p>
+        </div>
+        <div className="feature">
+          <h3>Properties & assets</h3>
+          <p>Keep key info to hand. Renewals and maintenance at a glance.</p>
+        </div>
+      </section>
+
+      <section id="how" className="landing-how container">
+        <div className="how-card card">
+          <h3 style={{marginTop:0}}>How it works</h3>
+          <ol>
+            <li>Sign in to your private dashboard</li>
+            <li>Create requests or message your concierge</li>
+            <li>Approve decisions and track progress</li>
+          </ol>
+          <button className="btn btn-primary ring" onClick={onSignIn}>Sign in</button>
+        </div>
+      </section>
+
+      <footer className="landing-foot container">
+        <div className="mono-note">© {new Date().getFullYear()} Private Life — All rights reserved.</div>
+      </footer>
     </div>
   );
 }
@@ -476,10 +603,6 @@ function TopBar({ onNewRequest, theme, privacy, pinSet, onToggleTheme, onToggleP
             ? <button className="btn btn-ghost ring" onClick={onLockNow}>Lock</button>
             : <button className="btn btn-ghost ring" onClick={onOpenPin}>Set PIN</button>
           }
-          <label className="btn btn-ghost ring" style={{display:"inline-grid", placeItems:"center"}}>
-            Import<input type="file" accept=".json" style={{display:"none"}} onChange={(e)=>{ if(e.target.files?.[0]) onImport(e.target.files[0]); e.currentTarget.value=""; }}/>
-          </label>
-          <button className="btn btn-ghost ring" onClick={onExport}>Export</button>
           <button className="btn btn-ghost ring" onClick={onToggleTheme}>{theme==="noir"?"Ivory":"Noir"}</button>
           <button className="btn btn-ghost ring" onClick={onOpenSettings}>Settings</button>
           <button className="btn btn-primary ring" onClick={onNewRequest}>New Request</button>
@@ -747,7 +870,8 @@ function PhoneDashboard({
   unresolvedAlerts=[],
   nextEvent, leaveInMin,
   nextTripSeg, money, properties=[],
-  onOpenQuick, onGoRequests, onGoCalendar, onGoTravel, onGoProperties, onGoMoney
+  onOpenQuick, onOpenChat,
+  onGoRequests, onGoCalendar, onGoTravel, onGoProperties, onGoMoney
 }) {
   const first = String(name).split(" ")[0] || name;
   const h = new Date().getHours();
@@ -813,6 +937,7 @@ function PhoneDashboard({
 
       {/* Floating + (opens quick-add sheet) */}
       <button className="fab" aria-label="Quick actions" onClick={onOpenQuick}>＋</button>
+      <button className="fab--msg" aria-label="Open messages" onClick={()=>onOpenChat?.()}>✉️</button>
     </div>
   );
 }
@@ -1697,7 +1822,7 @@ function Input(props){ return <input {...props} className="input" />; }
 function TextArea(props){ return <textarea {...props} className="textarea" />; }
 function Select(props){ return <select {...props} className="select" />; }
 
-function SettingsModal({ open, settings, onClose, onSave }){
+function SettingsModal({ open, settings, onClose, onSave, onImport, onExport }){
   const [currency,setCurrency]=useState(settings?.currency||"GBP");
   const [timeZone,setTimeZone]=useState(settings?.timeZone||"Europe/London");
   const [autoLockMin,setAutoLockMin]=useState(settings?.autoLockMin||2);
